@@ -6,6 +6,7 @@ library(readr)
 library(stringr)
 library(tidyr)
 library(ggplot2)
+library(purrr)
 
 # Define UI
 ui<-dashboardPage(
@@ -79,10 +80,11 @@ server <- function(input, output) {
   })
   
   ## Print table for user verification
-  output$pp = renderTable(arch())
+  #output$pp = renderTable(arch())
   
   ## Dynamically add annotations
   annoCount <- reactiveVal(0)
+  annoRM <- reactiveVal(vector())
 
   observeEvent(input$addAnno,{
 
@@ -97,6 +99,7 @@ server <- function(input, output) {
         h5(paste0("Annotation ",btn)),
         textInput(paste0("annoName_",btn),label = "Name"),
         textAreaInput(paste0("annoPos_",btn),label = "Positions"),
+        helpText("Add new positions on each line"),
         actionButton(paste0("remove_",btn),label = "Remove")
       )
     )
@@ -106,12 +109,11 @@ server <- function(input, output) {
         removeUI(
           selector = rmv
         )
-        #annoCount(annoCount()-1)
+        annoRM(append(annoRM(),btn))
     })
     
   })
   
-
   ## Read in gnomad file and filter        
   gnomad = reactive({
           read_csv("../test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T) |>
@@ -135,11 +137,22 @@ server <- function(input, output) {
     ## Get missense mutations as annotation
     mut = tibble(site=as.numeric(gnomad()$Position),Annotation="MissenseVariant")
     
+    annos<-c(1:annoCount())[!1:annoCount() %in% annoRM()] |>
+      map(~data.frame(site=input[[paste0("annoPos_",.x)]] |> str_split("\n") |> unlist() |> as.numeric(),
+                      Annotation=input[[paste0("annoName_",.x)]])) |>
+      bind_rows()
+    
+    bind_rows(mut,annos) |>
+      group_by(Annotation) |>
+      mutate(y = cur_group_id())
+    
     ## Bind missense and other annotations
-    bind_rows(mut,ptm2) |>
-        group_by(Annotation) %>%
-        mutate(y = cur_group_id())
+    #bind_rows(mut,ptm2) |>
+        #group_by(Annotation) %>%
+        #mutate(y = cur_group_id())
   })
+  
+  output$pp = renderTable(annotation())
   
   ## Plot protein
   observeEvent(input$plot,{
