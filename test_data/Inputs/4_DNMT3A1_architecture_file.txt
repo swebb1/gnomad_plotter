@@ -1,0 +1,5 @@
+Name	Start	End
+PWWP	278	427
+ADD	482	614
+MTase	634	912
+Ub	164	231

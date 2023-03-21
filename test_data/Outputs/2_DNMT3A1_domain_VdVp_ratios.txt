@@ -1,0 +1,8 @@
+Vp of the protein:
+0.28
+
+VdVp ratios of each domain:
+PWWP: 1.02
+ADD: 0.93
+MTase: 0.99
+Ub: 0.26

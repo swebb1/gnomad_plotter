@@ -1,0 +1,5 @@
+gnomAD transcript: ENST00000264709.3
+protein name = DNMT3A1
+protein length = 912
+protein ID = Q9Y6K1
+
