@@ -55,7 +55,7 @@ ui<-dashboardPage(
 # Define server logic required to draw a histogram
 server <- function(input, output) {
   
-  ## Plot colours
+  ## Plotting colours
   domain_fill = "#5ABCB9"
   cols<-c("MissenseVariant"="#777DA7","PTM"="#FE5F55")
             
