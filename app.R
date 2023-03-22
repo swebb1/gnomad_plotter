@@ -60,7 +60,7 @@ ui<-dashboardPage(
                          box(width = 6, title = "3D plot",status = "primary", solidHeader = F,
                              HTML('<script src="https://3Dmol.org/build/3Dmol-min.js"></script>'),
                              HTML('<script src="https://3Dmol.org/build/3Dmol.ui-min.js"></script>'),
-                             HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-pdb="6W8B" data-backgroundcolor="0xffffff" data-style="sphere" data-ui="true"></div>')
+                             HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-style="sphere" data-ui="true"></div>')
                          ),
                          box(width = 12, title= "1D plot",status = "primary", solidHeader = F,
                                  uiOutput("pplot")
