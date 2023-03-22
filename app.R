@@ -1,5 +1,6 @@
 library(shiny)
 library(shinydashboard)
+library(shinyjs)
 library(shinycssloaders)
 library(dplyr)
 library(readr)
@@ -8,6 +9,7 @@ library(tidyr)
 library(ggplot2)
 library(purrr)
 library(svglite)
+library(patchwork)
 
 # Define UI
 ui<-dashboardPage(
@@ -33,7 +35,8 @@ ui<-dashboardPage(
                                tabPanel("Inputs", fluid = TRUE,
                                  br(),
                                  textInput("pname","Protein Name",value = "DNMT3A1"),
-                                 numericInput("plength","Protein Length",value = 912)
+                                 numericInput("plength","Protein Length",value = 912),
+                                 uiOutput("plotting")
                                ),
                                tabPanel("Protein Domains", fluid = TRUE,
                                  br(),
@@ -48,10 +51,6 @@ ui<-dashboardPage(
                                  textAreaInput("anno","Paste Annotations"),
                                  helpText("Annotations: name,position separated by comma"),
                                ),
-                               tabPanel("Plotting Arguments", fluid = TRUE,
-                                 br(),
-                                 uiOutput("plotting")
-                               )
                              ),
                              br(),
                              actionButton("plot","Plot",
@@ -86,8 +85,11 @@ server <- function(input, output) {
   output$plotting = renderUI({
     tagList(
       numericInput("xmin","X-minimum",0,min = 0),
-      numericInput("xmax","X-maximum",input$plength,min = 0)
-    ) 
+      numericInput("xmax","X-maximum",input$plength,min = 0),
+      numericInput("breaks","X-breaks",50),
+      numericInput("vdvp_win","vD/vP window size",value = 0.02),
+      helpText("Window size is a fraction of the protein length")
+    )
   })
   
   observeEvent(input$plot,{
@@ -127,7 +129,31 @@ server <- function(input, output) {
       mutate(Original_Res = pc[str_sub(`Protein Consequence`,1,3)],
              New_Res = pc[str_sub(`Protein Consequence`,-3)],
              Position = str_remove_all(`Protein Consequence`,"[A-Z,a-z]")) |>
-      select(Position,Original_Res,New_Res)
+      select(Position,Original_Res,New_Res) |> 
+      unique()
+  })
+  
+  ## VdVP calculations
+  vdvp = reactive({
+  
+    index = gnomad() |> mutate(Position=as.numeric(Position)) |>
+      complete(Position=1:input$plength) |> pull(Position) |>
+      unique()
+  
+    mut_index = gnomad() |> pull(Position) |> unique()
+    
+    window = floor(input$plength*input$vdvp_win)
+    vp = length(mut_index)/input$plength
+    
+    vdvp = index %>% map(function(x){
+      vd = sum(mut_index %in% x:(x+window)) / window
+      vd/vp
+    }) |> unlist()
+    
+    #data <- data.frame(x=index,y=vdvp)
+    data <- as.data.frame(spline(index, vdvp))
+    data
+    
   })
   
   
@@ -220,12 +246,12 @@ server <- function(input, output) {
     p = annotation() |> ggplot() +
                 geom_rect(xmin = 0,xmax=input$plength,ymin=-0.2,ymax=0.2,fill="darkgrey")+
                 theme_bw()+
-                scale_x_continuous(breaks = seq(0,input$plength,25),labels = seq(0,input$plength,25))+
+                scale_x_continuous(breaks = seq(0,input$plength,input$breaks),labels = seq(0,input$plength,input$breaks))+
                 theme(axis.text.x = element_text(vjust = 1,angle = 90,size = 15),
-                      axis.title.x = element_text(margin = margin(t = 15), size = 20),
                       legend.text = element_text(size = 20),
                       legend.title = element_text(size = 25),
                       plot.title = element_text(size = 25),
+                      axis.title.x=element_blank(),
                       axis.title.y=element_blank(),
                       axis.text.y=element_blank(),
                       axis.ticks.y=element_blank(),
@@ -236,7 +262,7 @@ server <- function(input, output) {
                 geom_point(aes(x=Start,colour=Annotation,y=y+1),alpha=0.5,size=3)+
                 scale_colour_manual(values = cols)+
                 coord_cartesian(ylim=c(-1,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
-                labs(x="Position",title = input$pname)
+                labs(title = input$pname)
     
     if(nrow(arch())>0){
       p = p + 
@@ -244,7 +270,17 @@ server <- function(input, output) {
         geom_text(data=arch(),aes(x=Start+((End-Start)/2), y=0, label=Name),size=4,colour="white")
     }
     
-    p
+    p2 =  vdvp() |> ggplot(aes(x = x, y = y)) +
+      theme_classic() +
+      geom_line(size = 0.4) +
+      scale_x_continuous(breaks=seq(0,input$plength,input$breaks)) +
+      labs(x = "Residue", y = "Vd/Vp") +
+      theme(axis.text.x = element_text(vjust = 1,angle = 90,size = 15),
+            axis.text.y = element_text(hjust = 1,size = 15),
+            axis.title.x = element_text(margin = margin(t = 15), size = 20),
+            axis.title.y = element_text(margin = margin(r = 15), size = 20))
+    
+    p/p2+plot_layout(heights = c(3,1))
     
   })  
   
