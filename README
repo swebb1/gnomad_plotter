@@ -1,0 +1,9 @@
+
+Gnomad Plotter: Plot missense mutations from Gnomad over protein.
+
+Issues:
+- Gnomad: API to fetch protein and transcripts
+- Protein: Automatically detect protein name and length
+- vdvp: Centre window
+- 1dTo3d: Include script, 3D viewer
+- Extra annotations: 
