@@ -135,7 +135,7 @@ server <- function(input, output) {
       mutate(Original_Res = pc[str_sub(`Protein Consequence`,1,3)],
              New_Res = pc[str_sub(`Protein Consequence`,-3)],
              Position = str_remove_all(`Protein Consequence`,"[A-Z,a-z]")) |>
-      select(Position,Original_Res,New_Res) |> 
+      select(Position,Original_Res,New_Res,Allele_Frequency=`Allele Frequency`) |> 
       unique()
   })
   
@@ -311,6 +311,23 @@ server <- function(input, output) {
   ## Get selections from gnomad
   selections = reactive({
     
+    s = gnomad() |> select(Position,Allele_Frequency) |>
+      summarise(Allele_Frequency=sum(Allele_Frequency),.by = Position) |>
+      mutate(Log_score=log10(Allele_Frequency*(1e6)),
+             Selection = case_when(Log_score <= 1 ~ 1,
+                                   Log_score >1 & Log_score <= 2 ~ 2,
+                                   Log_score >2 & Log_score <= 3 ~ 3,
+                                   Log_score >3 & Log_score <= 4 ~ 4,
+                                   Log_score >4 & Log_score <= 5 ~ 5,
+                                   Log_score >5 & Log_score <= 6 ~ 6)) ## What about > 6?
+    
+    list(s1= s |> filter(Selection==1) |> pull(Position),
+         s2= s |> filter(Selection==2) |> pull(Position),
+         s3= s |> filter(Selection==3) |> pull(Position),
+         s3= s |> filter(Selection==4) |> pull(Position),
+         s4= s |> filter(Selection==5) |> pull(Position),
+         s6= s |> filter(Selection==6) |> pull(Position))
+    
   })
   
   ## Generate 3DMol embed code
@@ -380,7 +397,11 @@ server <- function(input, output) {
         )
       ) 
     
+      ## Add get model as single reactive
+      ## Add labels on and off check box
+      ## Min max selection (if required)
       ## Add spin check box %>% m_spin()
+    
     
   })
   
