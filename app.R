@@ -28,9 +28,9 @@ ui<-dashboardPage(
   ),
   dashboardBody(
     includeCSS("www/custom.css"),
-    tabsetPanel(type = "tabs",
-                tabPanel("1D Plot", fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
-                         br(),
+    #tabsetPanel(type = "tabs",
+    #            tabPanel("1D Plot", fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
+    #                     br(),
                          box(width = 6, title = "Configure",status = "primary", solidHeader = F, 
                              tabsetPanel(type = "tabs",
                                tabPanel("Inputs", fluid = TRUE,
@@ -64,17 +64,18 @@ ui<-dashboardPage(
                              #HTML("<script src='https://3Dmol.org/build/3Dmol.ui-min.js'></script>"),
                              #HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-select1="resi:9,23,25,28" data-style1="sphere:radius=6,color=blue" data-select2="resi:4,7,10,19" data-style2="sphere:radius=2,color=red"></div>')
                              #htmlOutput("mol")
+                             uiOutput("molplotting"),
                              r3dmolOutput("mol")
                          ),
                          box(width = 12, title= "1D plot",status = "primary", solidHeader = F,
                              uiOutput("pplot")
                          )
-                ),
-                tabPanel("Undefined", fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
-                         br()
+                #),
+                #tabPanel("Undefined", fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
+                         #br()
                          #withSpinner(DT::dataTableOutput("event_summary_table"))
-                )
-    )
+                #)
+    #)
   )
 )
 
@@ -91,11 +92,21 @@ server <- function(input, output) {
   output$plotting = renderUI({
     tagList(
       numericInput("xmin","X-minimum",0,min = 0),
-      numericInput("xmax","X-maximum",input$plength,min = 0),
+      numericInput("xmax","X-maximum",input$plength,min = 1),
       numericInput("breaks","X-breaks",50),
       numericInput("vdvp_win","vD/vP window size",value = 0.02),
       helpText("Window size is a fraction of the protein length")
     )
+  })
+  
+  output$molplotting = renderUI({
+    tagList(
+      textInput("pdbid","PDB ID","Q9Y6K1"),
+      checkboxInput("spin","Spin",value = F),
+      checkboxInput("labels","Labels",value = F),
+      numericInput("first","First Residue",value = 1,max = input$plength,min=1),
+      numericInput("last","Last Residue",input$plength,max = input$plength,min=1),
+    )    
   })
   
   observeEvent(input$plot,{
@@ -308,10 +319,11 @@ server <- function(input, output) {
   )
   
   
-  ## Get selections from gnomad
+  ## Get selections from Allele Frequency log_scores from Genomad data
   selections = reactive({
     
     s = gnomad() |> select(Position,Allele_Frequency) |>
+      filter(Position >= input$first, Position <= input$last) |> ## User defined region
       summarise(Allele_Frequency=sum(Allele_Frequency),.by = Position) |>
       mutate(Log_score=log10(Allele_Frequency*(1e6)),
              Selection = case_when(Log_score <= 1 ~ 1,
@@ -330,23 +342,34 @@ server <- function(input, output) {
     
   })
   
-  ## Generate 3DMol embed code
-  output$mol <- renderR3dmol({
+  ## Get the 3D model from AF database
+  r3mol = reactive({
     
-    pid = "Q9Y6K1"
-    sel = selections()
+    pid = input$pdbid
     
-    r3dmol(                         # Set up the initial viewer
+    model=r3dmol(                         # Set up the initial viewer
       viewer_spec = m_viewer_spec(
         cartoonQuality = 10,
         lowerZoomLimit = 50,
         upperZoomLimit = 1000
       )
     ) %>%
-      m_add_model(                 # Add model to scene
+    m_add_model(                 # Add model to scene
         data = m_bio3d(bio3d::read.pdb(paste0("https://alphafold.ebi.ac.uk/files/AF-",pid,"-F1-model_v4.pdb"))),
         format = "pdb"
-      ) %>%
+    )
+    
+    model
+    
+  })
+  
+  ## Generate 3DMol with R3dmol
+  output$mol <- renderR3dmol({
+  
+    sel = selections()
+    pid = input$pdbid
+    
+    r3d = r3mol() %>%
       m_zoom_to() %>%               # Zoom to encompass the whole scene
       m_add_style(                  
         sel = m_sel(resi = sel[[1]]),      
@@ -397,11 +420,67 @@ server <- function(input, output) {
         )
       ) 
     
-      ## Add get model as single reactive
+      if(input$labels==T){
+        r3d = r3d %>%
+          m_add_res_labels(
+            sel=m_sel(resi = sel[[1]]),
+            style = m_style_label(
+              backgroundColor = cols_3d[1],
+              inFront = T,
+              fontSize = 12,
+              showBackground = T)
+          ) %>%
+          m_add_res_labels(
+            sel=m_sel(resi = sel[[2]]),
+            style = m_style_label(
+              backgroundColor = cols_3d[2],
+              inFront = T,
+              fontSize = 12,
+              showBackground = T)
+          ) %>%
+          m_add_res_labels(
+            sel=m_sel(resi = sel[[3]]),
+            style = m_style_label(
+              backgroundColor = cols_3d[3],
+              inFront = T,
+              fontSize = 12,
+              showBackground = T)
+          ) %>%
+          m_add_res_labels(
+            sel=m_sel(resi = sel[[4]]),
+            style = m_style_label(
+              backgroundColor = cols_3d[4],
+              inFront = T,
+              fontSize = 12,
+              showBackground = T)
+          ) %>%
+          m_add_res_labels(
+            sel=m_sel(resi = sel[[5]]),
+            style = m_style_label(
+              backgroundColor = cols_3d[5],
+              inFront = T,
+              fontSize = 12,
+              showBackground = T)
+          ) %>%
+          m_add_res_labels(
+            sel=m_sel(resi = sel[[6]]),
+            style = m_style_label(
+              backgroundColor = cols_3d[6],
+              inFront = T,
+              fontSize = 12,
+              showBackground = T)
+          )
+      }
+
+    
+      if(input$spin==T){
+        r3d = r3d %>% m_spin(speed = 0.3)
+      }
+      
+      r3d
+
       ## Add labels on and off check box
       ## Min max selection (if required)
-      ## Add spin check box %>% m_spin()
-    
     
   })
   
