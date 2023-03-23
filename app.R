@@ -10,6 +10,7 @@ library(ggplot2)
 library(purrr)
 library(svglite)
 library(patchwork)
+library(r3dmol)
 
 # Define UI
 ui<-dashboardPage(
@@ -58,12 +59,15 @@ ui<-dashboardPage(
                                           style="background-color: #5ABCB9")
                          ),
                          box(width = 6, title = "3D plot",status = "primary", solidHeader = F,
-                             HTML('<script src="https://3Dmol.org/build/3Dmol-min.js"></script>'),
-                             HTML('<script src="https://3Dmol.org/build/3Dmol.ui-min.js"></script>'),
-                             HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-style="sphere" data-ui="true"></div>')
+                             #HTML("<script src='http://3Dmol.csb.pitt.edu/build/3Dmol-nojquery.js'></script>"),
+                             #HTML("<script src='https://3Dmol.org/build/3Dmol-min.js'></script>"),
+                             #HTML("<script src='https://3Dmol.org/build/3Dmol.ui-min.js'></script>"),
+                             #HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-select1="resi:9,23,25,28" data-style1="sphere:radius=6,color=blue" data-select2="resi:4,7,10,19" data-style2="sphere:radius=2,color=red"></div>')
+                             #htmlOutput("mol")
+                             r3dmolOutput("mol")
                          ),
                          box(width = 12, title= "1D plot",status = "primary", solidHeader = F,
-                                 uiOutput("pplot")
+                             uiOutput("pplot")
                          )
                 ),
                 tabPanel("Undefined", fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
@@ -81,6 +85,8 @@ server <- function(input, output) {
   ## Plotting colours
   domain_fill = "#5ABCB9"
   cols<-c("#777DA7","#FE5F55","#99C24D","#FFB703","#219EBC","#1D3461","#885053","#FB8500")
+  
+  cols_3d = RColorBrewer::brewer.pal(name="Blues",n=9)[4:9]
   
   output$plotting = renderUI({
     tagList(
@@ -288,7 +294,7 @@ server <- function(input, output) {
     proteinPlot1d() 
   })
   
-  # Download protein plot file
+  ## Download protein plot file
   output$save_pplot <- downloadHandler(
     filename = function() {
       input$filename_pplot
@@ -300,6 +306,83 @@ server <- function(input, output) {
       }
     }
   )
+  
+  
+  ## Get selections from gnomad
+  selections = reactive({
+    
+  })
+  
+  ## Generate 3DMol embed code
+  output$mol <- renderR3dmol({
+    
+    pid = "Q9Y6K1"
+    sel = selections()
+    
+    r3dmol(                         # Set up the initial viewer
+      viewer_spec = m_viewer_spec(
+        cartoonQuality = 10,
+        lowerZoomLimit = 50,
+        upperZoomLimit = 1000
+      )
+    ) %>%
+      m_add_model(                 # Add model to scene
+        data = m_bio3d(bio3d::read.pdb(paste0("https://alphafold.ebi.ac.uk/files/AF-",pid,"-F1-model_v4.pdb"))),
+        format = "pdb"
+      ) %>%
+      m_zoom_to() %>%               # Zoom to encompass the whole scene
+      m_add_style(                  
+        sel = m_sel(resi = sel[[1]]),      
+        style = m_style_sphere(
+          color = cols_3d[1],
+          colorScheme = "prop",
+          radius = 1.15
+        )
+      ) %>%
+      m_set_style(                  
+        sel = m_sel(resi = sel[[2]]),      
+        style = m_style_sphere(
+          color = cols_3d[2],
+          colorScheme = "prop",
+          radius = 1.5
+        )
+      ) %>%
+      m_set_style(                  
+        sel = m_sel(resi = sel[[3]]),      
+        style = m_style_sphere(
+          color = cols_3d[3],
+          colorScheme = "prop",
+          radius = 1.85
+        )
+      ) %>%
+      m_set_style(                  
+        sel = m_sel(resi = sel[[4]]),      
+        style = m_style_sphere(
+          color = cols_3d[4],
+          colorScheme = "prop",
+          radius = 2.15
+        )
+      ) %>%
+      m_set_style(                  
+        sel = m_sel(resi = sel[[5]]),      
+        style = m_style_sphere(
+          color = cols_3d[5],
+          colorScheme = "prop",
+          radius = 2.5
+        )
+      ) %>%
+      m_set_style(                  
+        sel = m_sel(resi = sel[[6]]),      
+        style = m_style_sphere(
+          color = cols_3d[6],
+          colorScheme = "prop",
+          radius = 2.85
+        )
+      ) 
+    
+      ## Add spin check box %>% m_spin()
+    
+  })
   
 }
 
