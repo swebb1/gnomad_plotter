@@ -45,7 +45,9 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
             ),
             column(width = 8,
                 h4("1D Plot"),
+                tags$div(style="height: 400px",
                 uiOutput("pplot"),
+                ),
                 h4("Download"),
                 textInput("filename_pplot","File name",value = "Protein_plot.pdf"),
                 downloadButton("save_pplot", "Download"),
@@ -67,7 +69,6 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
             ),
             column(width = 8,
                 h4("3D Plot"),
-                #HTML("<script src='http://3Dmol.csb.pitt.edu/build/3Dmol-nojquery.js'></script>"),
                 #HTML("<script src='https://3Dmol.org/build/3Dmol-min.js'></script>"),
                 #HTML("<script src='https://3Dmol.org/build/3Dmol.ui-min.js'></script>"),
                 #HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-select1="resi:9,23,25,28" data-style1="sphere:radius=6,color=blue" data-select2="resi:4,7,10,19" data-style2="sphere:radius=2,color=red"></div>')
@@ -140,7 +141,7 @@ server <- function(input, output) {
       mutate(`Protein Consequence` = str_remove(`Protein Consequence`,"^p.")) |>
       mutate(Original_Res = pc[str_sub(`Protein Consequence`,1,3)],
              New_Res = pc[str_sub(`Protein Consequence`,-3)],
-             Position = str_remove_all(`Protein Consequence`,"[A-Z,a-z]")) |> as.numeric() |>
+             Position = str_remove_all(`Protein Consequence`,"[A-Z,a-z]") |> as.numeric()) |>
       select(Position,Original_Res,New_Res,Allele_Frequency=`Allele Frequency`) |> 
       unique()
   })
@@ -338,6 +339,8 @@ server <- function(input, output) {
     
   })
   
+  prevpid = reactiveVal("NOTHING")
+  
   ## Get the 3D model from AF database
   r3mol = reactive({
     
@@ -354,10 +357,10 @@ server <- function(input, output) {
     m_add_model(                 # Add model to scene
         data = m_bio3d(bio3d::read.pdb(paste0("https://alphafold.ebi.ac.uk/files/AF-",pid,"-F1-model_v4.pdb"))),
         format = "pdb"
-    ) #%>% 
-    #m_zoom_to()             # Zoom to encompass the whole scene
+    ) %>% 
+    m_zoom_to()
     
-    model
+    model 
    }
   })
   
@@ -365,13 +368,13 @@ server <- function(input, output) {
   output$mol <- renderR3dmol({
     
    if(!is.null(r3mol())){
+     
     sel = selections()
-    pid = input$pdbid
-    
+
     r3d = r3mol()
     
-    r3d = r3mol() %>%
-      m_add_style(                  
+    r3d = r3d %>%
+      m_set_style(                  
         sel = m_sel(resi = sel[[1]]),      
         style = m_style_sphere(
           color = cols_3d[1],
@@ -379,7 +382,7 @@ server <- function(input, output) {
           radius = 1.15
         )
       ) %>%
-      m_add_style(                  
+      m_set_style(                  
         sel = m_sel(resi = sel[[2]]),      
         style = m_style_sphere(
           color = cols_3d[2],
@@ -387,7 +390,7 @@ server <- function(input, output) {
           radius = 1.5
         )
       ) %>%
-      m_add_style(                  
+      m_set_style(                  
         sel = m_sel(resi = sel[[3]]),      
         style = m_style_sphere(
           color = cols_3d[3],
@@ -395,7 +398,7 @@ server <- function(input, output) {
           radius = 1.85
         )
       ) %>%
-      m_add_style(                  
+      m_set_style(                  
         sel = m_sel(resi = sel[[4]]),      
         style = m_style_sphere(
           color = cols_3d[4],
@@ -403,7 +406,7 @@ server <- function(input, output) {
           radius = 2.15
         )
       ) %>%
-      m_add_style(                  
+      m_set_style(                  
         sel = m_sel(resi = sel[[5]]),      
         style = m_style_sphere(
           color = cols_3d[5],
@@ -411,7 +414,7 @@ server <- function(input, output) {
           radius = 2.5
         )
       ) %>%
-      m_add_style(                  
+      m_set_style(                  
         sel = m_sel(resi = sel[[6]]),      
         style = m_style_sphere(
           color = cols_3d[6],
