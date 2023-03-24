@@ -140,7 +140,7 @@ server <- function(input, output) {
       mutate(`Protein Consequence` = str_remove(`Protein Consequence`,"^p.")) |>
       mutate(Original_Res = pc[str_sub(`Protein Consequence`,1,3)],
              New_Res = pc[str_sub(`Protein Consequence`,-3)],
-             Position = str_remove_all(`Protein Consequence`,"[A-Z,a-z]")) |>
+             Position = str_remove_all(`Protein Consequence`,"[A-Z,a-z]")) |> as.numeric() |>
       select(Position,Original_Res,New_Res,Allele_Frequency=`Allele Frequency`) |> 
       unique()
   })
@@ -148,7 +148,7 @@ server <- function(input, output) {
   ## VdVP calculations
   vdvp = reactive({
   
-    index = gnomad() |> mutate(Position=as.numeric(Position)) |>
+    index = gnomad() |>
       complete(Position=1:input$plength) |> pull(Position) |>
       unique()
   
