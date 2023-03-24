@@ -1,5 +1,5 @@
 library(shiny)
-library(shinydashboard)
+library(bslib)
 library(shinyjs)
 library(shinycssloaders)
 library(dplyr)
@@ -11,72 +11,71 @@ library(purrr)
 library(svglite)
 library(patchwork)
 library(r3dmol)
+library(forcats)
 
 # Define UI
-ui<-dashboardPage(
-  
-  # Application title
-  dashboardHeader(title = "GnomadPlot", titleWidth = 240),
-  dashboardSidebar(
-    br(),
-    div(style="text-align: center;",
-        #actionButton("load","Load from Spond",icon = icon(name = "upload", lib = "font-awesome",style="color:white"),style="background-color: #367ea9;color:white"),
-        br(),
-        br()
-        #img(src="GlasgowUltimateLogo2013.png",width="80%")
-    )
-  ),
-  dashboardBody(
-    includeCSS("www/custom.css"),
-    #tabsetPanel(type = "tabs",
-    #            tabPanel("1D Plot", fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
-    #                     br(),
-                         box(width = 6, title = "Configure",status = "primary", solidHeader = F, 
-                             tabsetPanel(type = "tabs",
-                               tabPanel("Inputs", fluid = TRUE,
-                                 br(),
-                                 textInput("pname","Protein Name",value = "DNMT3A1"),
-                                 numericInput("plength","Protein Length",value = 912),
-                                 uiOutput("plotting")
-                               ),
-                               tabPanel("Protein Domains", fluid = TRUE,
-                                 br(),
-                                 fileInput(inputId = "arch_file",label = "Upload Protein Domain File"),
-                                 textAreaInput("arch","Paste Protein Domains"),
-                                 helpText("Protein domain: name,start,end separated by comma"),
-                                 tableOutput("arch_table")
-                               ),
-                               tabPanel("Annotations", fluid = TRUE,
-                                 br(),
-                                 fileInput(inputId = "anno_file",label = "Upload Annotation File"),
-                                 textAreaInput("anno","Paste Annotations"),
-                                 helpText("Annotations: name,position separated by comma"),
-                               ),
-                             ),
-                             br(),
-                             actionButton("plot","Plot",
-                                          icon = icon(name = "play", lib = "font-awesome",style="color:white"),
-                                          style="background-color: #5ABCB9")
-                         ),
-                         box(width = 6, title = "3D plot",status = "primary", solidHeader = F,
-                             #HTML("<script src='http://3Dmol.csb.pitt.edu/build/3Dmol-nojquery.js'></script>"),
-                             #HTML("<script src='https://3Dmol.org/build/3Dmol-min.js'></script>"),
-                             #HTML("<script src='https://3Dmol.org/build/3Dmol.ui-min.js'></script>"),
-                             #HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-select1="resi:9,23,25,28" data-style1="sphere:radius=6,color=blue" data-select2="resi:4,7,10,19" data-style2="sphere:radius=2,color=red"></div>')
-                             #htmlOutput("mol")
-                             uiOutput("molplotting"),
-                             r3dmolOutput("mol")
-                         ),
-                         box(width = 12, title= "1D plot",status = "primary", solidHeader = F,
-                             uiOutput("pplot")
-                         )
-                #),
-                #tabPanel("Undefined", fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
-                         #br()
-                         #withSpinner(DT::dataTableOutput("event_summary_table"))
-                #)
-    #)
-  )
+ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswatch = "yeti"), 
+  #includeCSS("www/custom.css"),
+  tabPanel("1D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
+           fluidRow(
+           column(width = 3,
+              h4("Configure"),
+              br(),
+              tabsetPanel(type = "tabs",
+                tabPanel("Inputs", fluid = TRUE,
+                    br(),
+                    textInput("pname","Protein Name",value = "DNMT3A1"),
+                    numericInput("plength","Protein Length",value = 912),
+                    uiOutput("plotting")
+                ),
+                tabPanel("Domains", fluid = TRUE,
+                    br(),
+                    fileInput(inputId = "arch_file",label = "Upload Protein Domain File"),
+                    textAreaInput("arch","Paste Protein Domains"),
+                    helpText("Protein domain: name,start,end separated by comma"),
+                    tableOutput("arch_table")
+                ),
+                tabPanel("Annotations", fluid = TRUE,
+                    br(),
+                    fileInput(inputId = "anno_file",label = "Upload Annotation File"),
+                    textAreaInput("anno","Paste Annotations"),
+                    helpText("Annotations: name,position separated by comma"),
+                ),
+              ),
+            ),
+            column(width = 8,
+                h4("1D Plot"),
+                uiOutput("pplot"),
+                h4("Download"),
+                textInput("filename_pplot","File name",value = "Protein_plot.pdf"),
+                downloadButton("save_pplot", "Download"),
+                helpText("Specify file format as suffix (.pdf,.svg,.png)")
+            ),
+            column(width = 1,
+                actionButton("plot","Plot",
+                      icon = icon(name = "play", lib = "font-awesome",style="color:white"),
+                      style="background #5ABCB9; background-color: #5ABCB9; border-color: #5ABCB9"),
+                br(),
+           )
+           )
+      ),
+      tabPanel("3D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
+            fluidRow(
+            column(width = 3,
+                h4("Configure"),
+                uiOutput("molplotting"),
+            ),
+            column(width = 8,
+                h4("3D Plot"),
+                #HTML("<script src='http://3Dmol.csb.pitt.edu/build/3Dmol-nojquery.js'></script>"),
+                #HTML("<script src='https://3Dmol.org/build/3Dmol-min.js'></script>"),
+                #HTML("<script src='https://3Dmol.org/build/3Dmol.ui-min.js'></script>"),
+                #HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-select1="resi:9,23,25,28" data-style1="sphere:radius=6,color=blue" data-select2="resi:4,7,10,19" data-style2="sphere:radius=2,color=red"></div>')
+                #htmlOutput("mol")
+                r3dmolOutput("mol")
+            )
+            )
+      )
 )
 
 
@@ -112,11 +111,7 @@ server <- function(input, output) {
   observeEvent(input$plot,{
     output$pplot = renderUI({
       tagList(
-        withSpinner(plotOutput("proteinPlot")),
-        h4("Download"),
-        textInput("filename_pplot","File name",value = "Protein_plot.pdf"),
-        downloadButton("save_pplot", "Download"),
-        helpText("Specify file format as suffix (.pdf,.svg,.png)")
+        withSpinner(plotOutput("proteinPlot"))
       )
     })
   })
@@ -250,7 +245,8 @@ server <- function(input, output) {
     ## Get missense mutations as annotation
     mut = tibble(Annotation="MissenseVariant",Start=as.numeric(gnomad()$Position))
     
-    bind_rows(mut,anno()) |>
+    bind_rows(mut,anno()) |> 
+      mutate(Annotation=as.factor(Annotation) %>% fct_relevel("MissenseVariant")) |>
       group_by(Annotation) |>
       mutate(y = cur_group_id())
     
@@ -345,6 +341,7 @@ server <- function(input, output) {
   ## Get the 3D model from AF database
   r3mol = reactive({
     
+   if(!is.null(input$pdbid)){
     pid = input$pdbid
     
     model=r3dmol(                         # Set up the initial viewer
@@ -357,20 +354,23 @@ server <- function(input, output) {
     m_add_model(                 # Add model to scene
         data = m_bio3d(bio3d::read.pdb(paste0("https://alphafold.ebi.ac.uk/files/AF-",pid,"-F1-model_v4.pdb"))),
         format = "pdb"
-    )
+    ) #%>% 
+    #m_zoom_to()             # Zoom to encompass the whole scene
     
     model
-    
+   }
   })
   
   ## Generate 3DMol with R3dmol
   output$mol <- renderR3dmol({
-  
+    
+   if(!is.null(r3mol())){
     sel = selections()
     pid = input$pdbid
     
+    r3d = r3mol()
+    
     r3d = r3mol() %>%
-      m_zoom_to() %>%               # Zoom to encompass the whole scene
       m_add_style(                  
         sel = m_sel(resi = sel[[1]]),      
         style = m_style_sphere(
@@ -379,7 +379,7 @@ server <- function(input, output) {
           radius = 1.15
         )
       ) %>%
-      m_set_style(                  
+      m_add_style(                  
         sel = m_sel(resi = sel[[2]]),      
         style = m_style_sphere(
           color = cols_3d[2],
@@ -387,7 +387,7 @@ server <- function(input, output) {
           radius = 1.5
         )
       ) %>%
-      m_set_style(                  
+      m_add_style(                  
         sel = m_sel(resi = sel[[3]]),      
         style = m_style_sphere(
           color = cols_3d[3],
@@ -395,7 +395,7 @@ server <- function(input, output) {
           radius = 1.85
         )
       ) %>%
-      m_set_style(                  
+      m_add_style(                  
         sel = m_sel(resi = sel[[4]]),      
         style = m_style_sphere(
           color = cols_3d[4],
@@ -403,7 +403,7 @@ server <- function(input, output) {
           radius = 2.15
         )
       ) %>%
-      m_set_style(                  
+      m_add_style(                  
         sel = m_sel(resi = sel[[5]]),      
         style = m_style_sphere(
           color = cols_3d[5],
@@ -411,7 +411,7 @@ server <- function(input, output) {
           radius = 2.5
         )
       ) %>%
-      m_set_style(                  
+      m_add_style(                  
         sel = m_sel(resi = sel[[6]]),      
         style = m_style_sphere(
           color = cols_3d[6],
@@ -481,7 +481,7 @@ server <- function(input, output) {
 
       ## Add labels on and off check box
       ## Min max selection (if required)
-    
+   } 
   })
   
 }

@@ -5,3 +5,13 @@
   font-weight: 200;
   font-size: 30px;
 }
+
+.btn, .btn:hover {
+  background: #5ABCB9;
+  background-color: #5ABCB9;
+}
+
+.btn:active {
+  background: #5ABCB9;
+  background-color: #5ABCB9;
+}
