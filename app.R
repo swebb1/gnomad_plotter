@@ -61,11 +61,12 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
            )
            )
       ),
-      tabPanel("3D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
+      tabPanel("3D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 1000px",
             fluidRow(
             column(width = 3,
                 h4("Configure"),
                 uiOutput("molplotting"),
+                uiOutput("plot_settings_3d")
             ),
             column(width = 8,
                 h4("3D Plot"),
@@ -73,7 +74,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 #HTML("<script src='https://3Dmol.org/build/3Dmol.ui-min.js'></script>"),
                 #HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-select1="resi:9,23,25,28" data-style1="sphere:radius=6,color=blue" data-select2="resi:4,7,10,19" data-style2="sphere:radius=2,color=red"></div>')
                 #htmlOutput("mol")
-                r3dmolOutput("mol")
+                r3dmolOutput("r3dmol")
             )
             )
       )
@@ -104,8 +105,8 @@ server <- function(input, output) {
       textInput("pdbid","PDB ID","Q9Y6K1"),
       checkboxInput("spin","Spin",value = F),
       checkboxInput("labels","Labels",value = F),
-      numericInput("first","First Residue",value = 1,max = input$plength,min=1),
-      numericInput("last","Last Residue",input$plength,max = input$plength,min=1),
+      numericInput("first","First residue relection",value = 1,max = input$plength,min=1),
+      numericInput("last","Last residue relection",input$plength,max = input$plength,min=1),
     )    
   })
   
@@ -123,9 +124,9 @@ server <- function(input, output) {
   names(pc) = pct$Three
   
   ## Hard coded annotation        
-  arch2 = read_tsv("test_data/Inputs/4_DNMT3A1_architecture_file.txt")
-  anno2 = read_tsv("test_data/Inputs/4_DNMT3A1_post_translation_file.txt") |> 
-    mutate(Annotation="PTM")
+  #arch2 = read_tsv("test_data/Inputs/4_DNMT3A1_architecture_file.txt")
+  #anno2 = read_tsv("test_data/Inputs/4_DNMT3A1_post_translation_file.txt") |> 
+  #  mutate(Annotation="PTM")
   
   ## Gnomad Filters        
   clinVar = c("Uncertain significance","Likely pathogenic","Pathogenic",
@@ -286,7 +287,7 @@ server <- function(input, output) {
     
     p2 =  vdvp() |> ggplot(aes(x = x, y = y)) +
       theme_classic() +
-      geom_line(size = 0.4) +
+      geom_line(linewidth = 0.4) +
       scale_x_continuous(breaks=seq(0,input$plength,input$breaks)) +
       labs(x = "Residue", y = "Vd/Vp") +
       theme(axis.text.x = element_text(vjust = 1,angle = 90,size = 15),
@@ -339,18 +340,17 @@ server <- function(input, output) {
     
   })
   
-  prevpid = reactiveVal("NOTHING")
-  
-  ## Get the 3D model from AF database
-  r3mol = reactive({
+  ## Get the 3D model from AF database and generate model
+  output$r3dmol = renderR3dmol({
     
    if(!is.null(input$pdbid)){
     pid = input$pdbid
+    sel = selections()
     
-    model=r3dmol(                         # Set up the initial viewer
+    r3dmol(                         # Set up the initial viewer
       viewer_spec = m_viewer_spec(
-        cartoonQuality = 10,
-        lowerZoomLimit = 50,
+        cartoonQuality = 50,
+        lowerZoomLimit = 5,
         upperZoomLimit = 1000
       )
     ) %>%
@@ -358,134 +358,202 @@ server <- function(input, output) {
         data = m_bio3d(bio3d::read.pdb(paste0("https://alphafold.ebi.ac.uk/files/AF-",pid,"-F1-model_v4.pdb"))),
         format = "pdb"
     ) %>% 
-    m_zoom_to()
-    
-    model 
-   }
+    m_zoom_to() %>% 
+    m_set_style(
+      sel = m_sel(resi = sel[[1]]),      
+      style = m_style_sphere(
+        color = cols_3d[1],
+        colorScheme = "prop",
+        radius = 1.15
+      )
+    ) %>% 
+    m_set_style(
+      sel = m_sel(resi = sel[[2]]),      
+      style = m_style_sphere(
+        color = cols_3d[2],
+        colorScheme = "prop",
+        radius = 1.5
+      )
+    ) %>% 
+    m_set_style(
+      sel = m_sel(resi = sel[[3]]),      
+      style = m_style_sphere(
+        color = cols_3d[3],
+        colorScheme = "prop",
+        radius = 1.85
+      )
+    ) %>% 
+    m_set_style(
+      sel = m_sel(resi = sel[[4]]),      
+      style = m_style_sphere(
+        color = cols_3d[4],
+        colorScheme = "prop",
+        radius = 2.15
+      )
+    ) %>% 
+    m_set_style(
+      sel = m_sel(resi = sel[[5]]),      
+      style = m_style_sphere(
+        color = cols_3d[5],
+        colorScheme = "prop",
+        radius = 2.5
+      )
+    ) %>% 
+    m_set_style(
+      sel = m_sel(resi = sel[[6]]),      
+      style = m_style_sphere(
+        color = cols_3d[6],
+        colorScheme = "prop",
+        radius = 2.85
+      )
+    )
+    }
   })
   
-  ## Generate 3DMol with R3dmol
-  output$mol <- renderR3dmol({
+  ## Turn on/off labels for selections
+  observeEvent(input$labels,{
     
-   if(!is.null(r3mol())){
-     
-    sel = selections()
-
-    r3d = r3mol()
-    
-    r3d = r3d %>%
-      m_set_style(                  
-        sel = m_sel(resi = sel[[1]]),      
-        style = m_style_sphere(
-          color = cols_3d[1],
-          colorScheme = "prop",
-          radius = 1.15
-        )
-      ) %>%
-      m_set_style(                  
-        sel = m_sel(resi = sel[[2]]),      
-        style = m_style_sphere(
-          color = cols_3d[2],
-          colorScheme = "prop",
-          radius = 1.5
-        )
-      ) %>%
-      m_set_style(                  
-        sel = m_sel(resi = sel[[3]]),      
-        style = m_style_sphere(
-          color = cols_3d[3],
-          colorScheme = "prop",
-          radius = 1.85
-        )
-      ) %>%
-      m_set_style(                  
-        sel = m_sel(resi = sel[[4]]),      
-        style = m_style_sphere(
-          color = cols_3d[4],
-          colorScheme = "prop",
-          radius = 2.15
-        )
-      ) %>%
-      m_set_style(                  
-        sel = m_sel(resi = sel[[5]]),      
-        style = m_style_sphere(
-          color = cols_3d[5],
-          colorScheme = "prop",
-          radius = 2.5
-        )
-      ) %>%
-      m_set_style(                  
-        sel = m_sel(resi = sel[[6]]),      
-        style = m_style_sphere(
-          color = cols_3d[6],
-          colorScheme = "prop",
-          radius = 2.85
-        )
-      ) 
-    
+    if(!is.null(input$pdbid)){
       if(input$labels==T){
-        r3d = r3d %>%
-          m_add_res_labels(
-            sel=m_sel(resi = sel[[1]]),
-            style = m_style_label(
-              backgroundColor = cols_3d[1],
-              inFront = T,
-              fontSize = 12,
-              showBackground = T)
-          ) %>%
-          m_add_res_labels(
-            sel=m_sel(resi = sel[[2]]),
-            style = m_style_label(
-              backgroundColor = cols_3d[2],
-              inFront = T,
-              fontSize = 12,
-              showBackground = T)
-          ) %>%
-          m_add_res_labels(
-            sel=m_sel(resi = sel[[3]]),
-            style = m_style_label(
-              backgroundColor = cols_3d[3],
-              inFront = T,
-              fontSize = 12,
-              showBackground = T)
-          ) %>%
-          m_add_res_labels(
-            sel=m_sel(resi = sel[[4]]),
-            style = m_style_label(
-              backgroundColor = cols_3d[4],
-              inFront = T,
-              fontSize = 12,
-              showBackground = T)
-          ) %>%
-          m_add_res_labels(
-            sel=m_sel(resi = sel[[5]]),
-            style = m_style_label(
-              backgroundColor = cols_3d[5],
-              inFront = T,
-              fontSize = 12,
-              showBackground = T)
-          ) %>%
-          m_add_res_labels(
-            sel=m_sel(resi = sel[[6]]),
-            style = m_style_label(
-              backgroundColor = cols_3d[6],
-              inFront = T,
-              fontSize = 12,
-              showBackground = T)
-          )
+        sel = selections()
+        
+        m_add_res_labels(
+          id="r3dmol",
+          sel=m_sel(resi = sel[[1]]),
+          style = m_style_label(
+            backgroundColor = cols_3d[1],
+            inFront = T,
+            fontSize = 12,
+            showBackground = T)
+        )
+        m_add_res_labels(
+          id="r3dmol",
+          sel=m_sel(resi = sel[[2]]),
+          style = m_style_label(
+            backgroundColor = cols_3d[2],
+            inFront = T,
+            fontSize = 12,
+            showBackground = T)
+        )
+        m_add_res_labels(
+          id="r3dmol",
+          sel=m_sel(resi = sel[[3]]),
+          style = m_style_label(
+            backgroundColor = cols_3d[3],
+            inFront = T,
+            fontSize = 12,
+            showBackground = T)
+        )
+        m_add_res_labels(
+          id="r3dmol",
+          sel=m_sel(resi = sel[[4]]),
+          style = m_style_label(
+            backgroundColor = cols_3d[4],
+            inFront = T,
+            fontSize = 12,
+            showBackground = T)
+        )
+        m_add_res_labels(
+          id="r3dmol",
+          sel=m_sel(resi = sel[[5]]),
+          style = m_style_label(
+            backgroundColor = cols_3d[5],
+            inFront = T,
+            fontSize = 12,
+            showBackground = T)
+        )
+        m_add_res_labels(
+          id="r3dmol",
+          sel=m_sel(resi = sel[[6]]),
+          style = m_style_label(
+            backgroundColor = cols_3d[6],
+            inFront = T,
+            fontSize = 12,
+            showBackground = T)
+        )
       }
-
-    
-      if(input$spin==T){
-        r3d = r3d %>% m_spin(speed = 0.3)
+      else{
+        m_remove_all_labels(id="r3dmol")
       }
-      
-      r3d
-
-      ## Add labels on and off check box
-      ## Min max selection (if required)
-   } 
+    }
   })
+
+  ## Turn on / off spin
+  observeEvent(input$spin,{
+    if(input$spin==T){
+      m_spin(id = "r3dmol",speed = 0.3)
+    }
+    else{
+      m_spin(id = "r3dmol",speed = 0)
+    }
+  })
+  
+  ## Extra settings for 3dmol
+  output$plot_settings_3d <- renderUI({
+    tagList(
+      selectInput(
+        inputId = "set_style",
+        label = "Set main style",
+        choices = c("Line", "Cross", "Stick", "Sphere", "Cartoon"),
+        selected = "Line"
+      ),
+      sliderInput(
+        inputId = "set_slab",
+        label = "Set slab of view",
+        min = -150,
+        value = c(-150, 150),
+        animate = TRUE,
+        step = 10,
+        max = 150,
+        dragRange = TRUE
+      )#,
+      #radioButtons(
+      #  label = "Set view projection scheme",
+      #  inputId = "set_projection",
+      #  choices = c("perspective", "orthographic"),
+      #  inline = TRUE
+      #),
+      #sliderInput(
+      #  inputId = "set_perceived_distance",
+      #  label = "Set perceived distance",
+      #  min = 0,
+      #  max = 500,
+      #  value = 300
+      #)
+    )
+  })
+  
+   observeEvent(input$set_style, {
+     style <- switch(
+       input$set_style,
+       "Line" = list(line = list()),
+       "Cartoon" = list(cartoon = list()),
+       "Stick" = list(stick = list()),
+       "Cross" = list(cross = list()),
+       "Sphere" = list(sphere = list())
+     )
+     
+     sel = selections()
+     
+     m_set_style(id = "r3dmol",
+                 sel = m_sel(resi = c(1:input$plength)[-unlist(sel)]),
+                 style = style
+     )
+  })
+  
+  #observeEvent(input$set_projection, {
+  #  m_set_projection(id = "r3dmol", scheme = input$set_projection)
+  #})
+  
+  observeEvent(input$set_slab, {
+    m_set_slab(id = "r3dmol",
+               near = input$set_slab[1],
+               far = input$set_slab[2])
+  })
+  
+  #observeEvent(input$set_perceived_distance, {
+  #  m_set_preceived_distance(id = "r3dmol", dist = input$set_perceived_distance)
+  #})
   
 }
 
