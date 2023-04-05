@@ -86,8 +86,9 @@ server <- function(input, output) {
   
   ## Plotting colours
   domain_fill = "#5ABCB9"
-  cols<-c("#777DA7","#FE5F55","#99C24D","#FFB703","#219EBC","#1D3461","#885053","#FB8500")
-  
+  cols<-c("#FE5F55","#99C24D","#FFB703","#219EBC","#1D3461","#885053","#FB8500")
+  ms_col="#777DA7"
+    
   cols_3d = RColorBrewer::brewer.pal(name="Blues",n=9)[4:9]
   
   output$plotting = renderUI({
@@ -258,7 +259,7 @@ server <- function(input, output) {
   ## Plot protein
   proteinPlot1d = eventReactive(input$plot,{
       
-    p = annotation() |> ggplot() +
+    p = annotation() |> filter(Annotation=="MissenseVariant") |> ggplot() +
                 geom_rect(xmin = 0,xmax=input$plength,ymin=-0.2,ymax=0.2,fill="darkgrey")+
                 theme_bw()+
                 scale_x_continuous(breaks = seq(0,input$plength,input$breaks),labels = seq(0,input$plength,input$breaks))+
@@ -274,7 +275,8 @@ server <- function(input, output) {
                       panel.grid.minor = element_blank(),
                       panel.background = element_blank()
                 ) +
-                geom_point(aes(x=Start,colour=Annotation,y=y+1),alpha=0.5,size=3)+
+                geom_tile(aes(x=Start,y=1.5),colour=ms_col,fill=ms_col,alpha=0.5)+
+                geom_point(data = annotation() |> filter(!Annotation=="MissenseVariant"),aes(x=Start,colour=Annotation,y=y+1.5),alpha=0.5,size=3)+
                 scale_colour_manual(values = cols)+
                 coord_cartesian(ylim=c(-1,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
                 labs(title = input$pname)
