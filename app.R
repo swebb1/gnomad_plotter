@@ -360,7 +360,7 @@ server <- function(input, output) {
     ) %>% 
     m_zoom_to() %>% 
     m_set_style(
-      sel = m_sel(resi = sel[[1]]),      
+      sel = m_sel(resi = sel[[1]],atom = "CA"),      
       style = m_style_sphere(
         color = cols_3d[1],
         colorScheme = "prop",
@@ -368,7 +368,7 @@ server <- function(input, output) {
       )
     ) %>% 
     m_set_style(
-      sel = m_sel(resi = sel[[2]]),      
+      sel = m_sel(resi = sel[[2]],atom = "CA"),      
       style = m_style_sphere(
         color = cols_3d[2],
         colorScheme = "prop",
@@ -376,7 +376,7 @@ server <- function(input, output) {
       )
     ) %>% 
     m_set_style(
-      sel = m_sel(resi = sel[[3]]),      
+      sel = m_sel(resi = sel[[3]],atom = "CA"),      
       style = m_style_sphere(
         color = cols_3d[3],
         colorScheme = "prop",
@@ -384,7 +384,7 @@ server <- function(input, output) {
       )
     ) %>% 
     m_set_style(
-      sel = m_sel(resi = sel[[4]]),      
+      sel = m_sel(resi = sel[[4]],atom = "CA"),      
       style = m_style_sphere(
         color = cols_3d[4],
         colorScheme = "prop",
@@ -392,7 +392,7 @@ server <- function(input, output) {
       )
     ) %>% 
     m_set_style(
-      sel = m_sel(resi = sel[[5]]),      
+      sel = m_sel(resi = sel[[5]],atom = "CA"),      
       style = m_style_sphere(
         color = cols_3d[5],
         colorScheme = "prop",
@@ -400,7 +400,7 @@ server <- function(input, output) {
       )
     ) %>% 
     m_set_style(
-      sel = m_sel(resi = sel[[6]]),      
+      sel = m_sel(resi = sel[[6]],atom = "CA"),      
       style = m_style_sphere(
         color = cols_3d[6],
         colorScheme = "prop",
@@ -491,6 +491,7 @@ server <- function(input, output) {
   ## Extra settings for 3dmol
   output$plot_settings_3d <- renderUI({
     tagList(
+      checkboxInput("surface","Add surface"),
       selectInput(
         inputId = "set_style",
         label = "Set main style",
@@ -536,7 +537,8 @@ server <- function(input, output) {
      sel = selections()
      
      m_set_style(id = "r3dmol",
-                 sel = m_sel(resi = c(1:input$plength)[-unlist(sel)]),
+                 sel = m_sel(resi = unlist(sel,use.names = F),atom="CA",invert = T),
+                 #sel = m_sel(resi = c(1:input$plength)[-c(unlist(sel))],invert = F),
                  style = style
      )
   })
@@ -550,6 +552,16 @@ server <- function(input, output) {
                near = input$set_slab[1],
                far = input$set_slab[2])
   })
+  
+  observeEvent(input$surface,{
+    if(input$surface==T){
+      m_add_surface(id = "r3dmol",style = m_style_surface(opacity = 0.4))
+    }
+    else{
+      m_remove_all_surfaces(id = "r3dmol")
+    }
+  })
+  
   
   #observeEvent(input$set_perceived_distance, {
   #  m_set_preceived_distance(id = "r3dmol", dist = input$set_perceived_distance)
