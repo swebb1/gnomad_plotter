@@ -24,7 +24,8 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
               tabsetPanel(type = "tabs",
                 tabPanel("Inputs", fluid = TRUE,
                     br(),
-                    textInput("pname","Protein Name",value = "DNMT3A1"),
+                    fileInput(inputId = "gnomad_file",label = "Upload Gnomad CSV File"),
+                    #textInput("pname","Protein Name",value = "DNMT3A1"),
                     numericInput("plength","Protein Length",value = 912),
                     uiOutput("plotting")
                 ),
@@ -49,7 +50,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 uiOutput("pplot"),
                 ),
                 h4("Download"),
-                textInput("filename_pplot","File name",value = "Protein_plot.pdf"),
+                textInput("filename_pplot","File Name",value = "Protein_plot.pdf"),
                 downloadButton("save_pplot", "Download"),
                 helpText("Specify file format as suffix (.pdf,.svg,.png)")
             ),
@@ -96,7 +97,7 @@ server <- function(input, output) {
       numericInput("xmin","X-minimum",0,min = 0),
       numericInput("xmax","X-maximum",input$plength,min = 1),
       numericInput("breaks","X-breaks",50),
-      numericInput("vdvp_win","vD/vP window size",value = 0.02),
+      numericInput("vdvp_win","vD/vP Window Size",value = 0.02),
       helpText("Window size is a fraction of the protein length")
     )
   })
@@ -106,8 +107,8 @@ server <- function(input, output) {
       textInput("pdbid","PDB ID","Q9Y6K1"),
       checkboxInput("spin","Spin",value = F),
       checkboxInput("labels","Labels",value = F),
-      numericInput("first","First residue relection",value = 1,max = input$plength,min=1),
-      numericInput("last","Last residue relection",input$plength,max = input$plength,min=1),
+      numericInput("first","First Residue Selection",value = 1,max = input$plength,min=1),
+      numericInput("last","Last Residue Selection",input$plength,max = input$plength,min=1),
     )    
   })
   
@@ -136,8 +137,29 @@ server <- function(input, output) {
   
   ## Read in gnomad file and filter        
   gnomad = reactive({
-    read_csv("test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T) |>
-      filter(`VEP Annotation` == "missense_variant",
+    
+      gnomadF = NULL
+      if(!is.null(input$gnomad_file)){
+        tryCatch(
+          {
+            gnomadF = read_csv(input$gnomad_file$datapath,col_names = c("Name","Start","End"))
+          },
+          error = function(e){
+            message("Cannot upload file")
+            showModal(modalDialog(
+              title = "Error",
+              "Cannot upload file"
+            ))
+            return(NULL)
+          }
+        )
+      }
+      else{
+        ## Default file
+        gnomadF = read_csv("test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T)
+      }
+      
+      gnomadF |> filter(`VEP Annotation` == "missense_variant",
              `Filters - exomes` == "PASS",
              !`ClinVar Clinical Significance` %in% clinVar) |>
       mutate(`Protein Consequence` = str_remove(`Protein Consequence`,"^p.")) |>
@@ -151,13 +173,15 @@ server <- function(input, output) {
   ## VdVP calculations
   vdvp = reactive({
   
-    index = gnomad() |>
-      complete(Position=1:input$plength) |> pull(Position) |>
-      unique()
-  
+    index = 1:input$plength
     mut_index = gnomad() |> pull(Position) |> unique()
     
-    window = floor(input$plength*input$vdvp_win)
+    if(input$vdvp_win<1){
+      window = floor(input$plength*input$vdvp_win) ## Fraction of length
+    }
+    else{
+      window = input$vdvp_win ## Fixed size
+    }
     vp = length(mut_index)/input$plength
     
     vdvp = index %>% map(function(x){
@@ -165,9 +189,19 @@ server <- function(input, output) {
       vd/vp
     }) |> unlist()
     
+    ## vd/vp reverse
+    #index.rev = input$plength:1
+
+    #vdvp2 = index.rev %>% map(function(x){
+    #  vd = sum(mut_index %in% x:(x-window)) / window
+    #  vd/vp
+    #}) |> unlist()
+    
     #data <- data.frame(x=index,y=vdvp)
-    data <- as.data.frame(spline(index, vdvp))
+    data <- as.data.frame(spline(index+(window/2),vdvp)) #|> mutate(direction="forward") ## Centre window
     data
+    #data2 <- as.data.frame(spline(index.rev-(window/2),vdvp2)) |> mutate(direction="reverse") ## Centre window
+    #bind_rows(data,data2)
     
   })
   
@@ -287,15 +321,17 @@ server <- function(input, output) {
         geom_text(data=arch(),aes(x=Start+((End-Start)/2), y=0, label=Name),size=4,colour="white")
     }
     
-    p2 =  vdvp() |> ggplot(aes(x = x, y = y)) +
+    p2 =  vdvp() |> ggplot(aes(x = x, y = y)) +  #group=direction,colour=direction)) +
       theme_classic() +
-      geom_line(linewidth = 0.4) +
+      geom_line(linewidth = 0.4,colour="#19647E") +
+      #scale_colour_manual(values = c("#19647E","#749C75")) +
       scale_x_continuous(breaks=seq(0,input$plength,input$breaks)) +
       labs(x = "Residue", y = "Vd/Vp") +
       theme(axis.text.x = element_text(vjust = 1,angle = 90,size = 15),
             axis.text.y = element_text(hjust = 1,size = 15),
             axis.title.x = element_text(margin = margin(t = 15), size = 20),
-            axis.title.y = element_text(margin = margin(r = 15), size = 20))
+            axis.title.y = element_text(margin = margin(r = 15), size = 20))+
+      coord_cartesian(xlim=c(input$xmin,input$xmax))
     
     p/p2+plot_layout(heights = c(3,1))
     
