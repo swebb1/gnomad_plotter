@@ -6,7 +6,8 @@ Issues:
   - Currently just upload csv file
 - Protein: Automatically detect protein name and length
 - 1d plot: Add multiple annotations
-- vdvp: Centre window, plot from both ends
-- 3d: Include pymol/chimera script downloads
+- vdvp: How to deal with both ends
+- 3d: Inlude chimera script download,
+  - Rerenders/downloads when change selections
 - Extra annotation options:
 

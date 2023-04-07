@@ -25,7 +25,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 tabPanel("Inputs", fluid = TRUE,
                     br(),
                     fileInput(inputId = "gnomad_file",label = "Upload Gnomad CSV File"),
-                    #textInput("pname","Protein Name",value = "DNMT3A1"),
+                    textInput("pname","Protein Name",value = "DNMT3A1"),
                     numericInput("plength","Protein Length",value = 912),
                     uiOutput("plotting")
                 ),
@@ -59,7 +59,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                       icon = icon(name = "play", lib = "font-awesome",style="color:white"),
                       style="background #5ABCB9; background-color: #5ABCB9; border-color: #5ABCB9"),
                 br(),
-           )
+            )
            )
       ),
       tabPanel("3D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 1000px",
@@ -69,13 +69,17 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 uiOutput("molplotting"),
                 uiOutput("plot_settings_3d")
             ),
-            column(width = 8,
+            column(width = 7,
                 h4("3D Plot"),
                 #HTML("<script src='https://3Dmol.org/build/3Dmol-min.js'></script>"),
                 #HTML("<script src='https://3Dmol.org/build/3Dmol.ui-min.js'></script>"),
                 #HTML('<div style="height: 400px; width: 400px; position: relative;" class="viewer_3Dmoljs" data-href="https://alphafold.ebi.ac.uk/files/AF-Q9Y6K1-F1-model_v4.pdb" data-backgroundcolor="0xffffff" data-select1="resi:9,23,25,28" data-style1="sphere:radius=6,color=blue" data-select2="resi:4,7,10,19" data-style2="sphere:radius=2,color=red"></div>')
                 #htmlOutput("mol")
-                r3dmolOutput("r3dmol")
+                r3dmolOutput("r3dmol",width = "800px",height = "600px")
+            ),
+            column(width = 2,
+                   downloadButton("pymol", "PyMol Script"),
+                   br(),
             )
             )
       )
@@ -108,7 +112,7 @@ server <- function(input, output) {
       checkboxInput("spin","Spin",value = F),
       checkboxInput("labels","Labels",value = F),
       numericInput("first","First Residue Selection",value = 1,max = input$plength,min=1),
-      numericInput("last","Last Residue Selection",input$plength,max = input$plength,min=1),
+      numericInput("last","Last Residue Selection",input$plength,max = input$plength,min=1)
     )    
   })
   
@@ -604,6 +608,29 @@ server <- function(input, output) {
   #observeEvent(input$set_perceived_distance, {
   #  m_set_preceived_distance(id = "r3dmol", dist = input$set_perceived_distance)
   #})
+  
+  ## Generate pyMol script
+  pymolScript = reactive({
+    sel = selections()
+    i = 1:6  
+    ps = "bg_color white\ncolor white, DNMT3A1\nutil.performance(0)\nspace rgb\nset ray_shadows,off\n"
+    pss = i |> map(~paste0("select s",.x," (((i;",paste(sort(sel[[.x]]),collapse = ","),") and n; CA) and ",pname,"\n"))  |> reduce(paste0)
+    ps = paste0(ps,pss,"show spheres, (s1,s2,s3,s4,s5,s6)\nset sphere_scale, 1.15, s1\nset sphere_scale, 1.50, s2\nset sphere_scale, 1.85, s3\nset sphere_scale, 2.15, s4\nset sphere_scale, 2.50, s5\nset sphere_scale, 2.85, s6\nset_color b1, [100,120,250]\nset_color b2, [35,40,200]\nset_color b3, [18,0,150]\nset_color b4, [9,0,100]\nset_color b5, [0,0,50]\nset_color b6, [0,0,0]\ncolor b1, s1\ncolor b2, s2\ncolor b3, s3\ncolor b4, s4\ncolor b5, s5\ncolor b6, s6\n")
+    ps
+  })
+  
+  ## Download protein plot file
+  output$pymol <- downloadHandler(
+    filename = function() {
+      paste0(input$pname,".pymol")
+    },
+    content = function(file) {
+      if(!is.null(input$pdbid)){
+        ps=pymolScript()
+        write(ps,file = file)
+      }
+    }
+  )
   
 }
 
