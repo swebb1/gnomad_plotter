@@ -111,9 +111,48 @@ server <- function(input, output) {
       textInput("pdbid","PDB ID","Q9Y6K1"),
       checkboxInput("spin","Spin",value = F),
       checkboxInput("labels","Labels",value = F),
-      numericInput("first","First Residue Selection",value = 1,max = input$plength,min=1),
-      numericInput("last","Last Residue Selection",input$plength,max = input$plength,min=1)
+      numericInput("first","First Residue Selection",value = 1,max = input$plength,min=0),
+      numericInput("last","Last Residue Selection",input$plength,max = input$plength,min=0),
+      actionButton("selectSpheres","Update Selection"),
+      br(),
     )    
+  })
+  
+  ## Extra settings for 3dmol
+  output$plot_settings_3d <- renderUI({
+    tagList(
+      br(),
+      checkboxInput("surface","Add surface"),
+      selectInput(
+        inputId = "set_style",
+        label = "Set main style",
+        choices = c("Line", "Cross", "Stick", "Sphere", "Cartoon"),
+        selected = "Line"
+      ),
+      sliderInput(
+        inputId = "set_slab",
+        label = "Set slab of view",
+        min = -150,
+        value = c(-150, 150),
+        animate = TRUE,
+        step = 10,
+        max = 150,
+        dragRange = TRUE
+      )#,
+      #radioButtons(
+      #  label = "Set view projection scheme",
+      #  inputId = "set_projection",
+      #  choices = c("perspective", "orthographic"),
+      #  inline = TRUE
+      #),
+      #sliderInput(
+      #  inputId = "set_perceived_distance",
+      #  label = "Set perceived distance",
+      #  min = 0,
+      #  max = 500,
+      #  value = 300
+      #)
+    )
   })
   
   observeEvent(input$plot,{
@@ -387,7 +426,6 @@ server <- function(input, output) {
     
    if(!is.null(input$pdbid)){
     pid = input$pdbid
-    sel = selections()
     
     r3dmol(                         # Set up the initial viewer
       viewer_spec = m_viewer_spec(
@@ -400,55 +438,86 @@ server <- function(input, output) {
         data = m_bio3d(bio3d::read.pdb(paste0("https://alphafold.ebi.ac.uk/files/AF-",pid,"-F1-model_v4.pdb"))),
         format = "pdb"
     ) %>% 
-    m_zoom_to() %>% 
-    m_set_style(
-      sel = m_sel(resi = sel[[1]],atom = "CA"),      
-      style = m_style_sphere(
-        color = cols_3d[1],
-        colorScheme = "prop",
-        radius = 1.15
+    m_zoom_to()
+    }
+  })
+  
+  observeEvent(input$selectSpheres,{
+    
+    if(!is.null(input$pdbid)){
+      
+      style <- switch(
+        input$set_style,
+        "Line" = list(line = list()),
+        "Cartoon" = list(cartoon = list()),
+        "Stick" = list(stick = list()),
+        "Cross" = list(cross = list()),
+        "Sphere" = list(sphere = list())
       )
-    ) %>% 
-    m_set_style(
-      sel = m_sel(resi = sel[[2]],atom = "CA"),      
-      style = m_style_sphere(
-        color = cols_3d[2],
-        colorScheme = "prop",
-        radius = 1.5
+      m_remove_all_shapes(id="r3dmol")
+      m_set_style(
+        id="r3dmol",
+        style = style
       )
-    ) %>% 
-    m_set_style(
-      sel = m_sel(resi = sel[[3]],atom = "CA"),      
-      style = m_style_sphere(
-        color = cols_3d[3],
-        colorScheme = "prop",
-        radius = 1.85
-      )
-    ) %>% 
-    m_set_style(
-      sel = m_sel(resi = sel[[4]],atom = "CA"),      
-      style = m_style_sphere(
-        color = cols_3d[4],
-        colorScheme = "prop",
-        radius = 2.15
-      )
-    ) %>% 
-    m_set_style(
-      sel = m_sel(resi = sel[[5]],atom = "CA"),      
-      style = m_style_sphere(
-        color = cols_3d[5],
-        colorScheme = "prop",
-        radius = 2.5
-      )
-    ) %>% 
-    m_set_style(
-      sel = m_sel(resi = sel[[6]],atom = "CA"),      
-      style = m_style_sphere(
-        color = cols_3d[6],
-        colorScheme = "prop",
-        radius = 2.85
-      )
-    )
+      
+      if(input$last>0){
+        sel = selections()
+        
+        m_set_style(
+          id="r3dmol",
+          sel = m_sel(resi = sel[[1]],atom = "CA"),      
+          style = m_style_sphere(
+            color = cols_3d[1],
+            colorScheme = "prop",
+            radius = 1.15
+          )
+        )
+        m_set_style(
+          id="r3dmol",
+          sel = m_sel(resi = sel[[2]],atom = "CA"),      
+          style = m_style_sphere(
+            color = cols_3d[2],
+            colorScheme = "prop",
+            radius = 1.5
+          )
+        )
+        m_set_style(
+          id="r3dmol",
+          sel = m_sel(resi = sel[[3]],atom = "CA"),      
+          style = m_style_sphere(
+            color = cols_3d[3],
+            colorScheme = "prop",
+            radius = 1.85
+          )
+        ) 
+        m_set_style(
+          id="r3dmol",
+          sel = m_sel(resi = sel[[4]],atom = "CA"),      
+          style = m_style_sphere(
+            color = cols_3d[4],
+            colorScheme = "prop",
+            radius = 2.15
+          )
+        ) 
+        m_set_style(
+          id="r3dmol",
+          sel = m_sel(resi = sel[[5]],atom = "CA"),      
+          style = m_style_sphere(
+            color = cols_3d[5],
+            colorScheme = "prop",
+            radius = 2.5
+          )
+        ) 
+        m_set_style(
+          id="r3dmol",
+          sel = m_sel(resi = sel[[6]],atom = "CA"),      
+          style = m_style_sphere(
+            color = cols_3d[6],
+            colorScheme = "prop",
+            radius = 2.85
+          )
+        )
+      }
     }
   })
   
@@ -528,42 +597,6 @@ server <- function(input, output) {
     else{
       m_spin(id = "r3dmol",speed = 0)
     }
-  })
-  
-  ## Extra settings for 3dmol
-  output$plot_settings_3d <- renderUI({
-    tagList(
-      checkboxInput("surface","Add surface"),
-      selectInput(
-        inputId = "set_style",
-        label = "Set main style",
-        choices = c("Line", "Cross", "Stick", "Sphere", "Cartoon"),
-        selected = "Line"
-      ),
-      sliderInput(
-        inputId = "set_slab",
-        label = "Set slab of view",
-        min = -150,
-        value = c(-150, 150),
-        animate = TRUE,
-        step = 10,
-        max = 150,
-        dragRange = TRUE
-      )#,
-      #radioButtons(
-      #  label = "Set view projection scheme",
-      #  inputId = "set_projection",
-      #  choices = c("perspective", "orthographic"),
-      #  inline = TRUE
-      #),
-      #sliderInput(
-      #  inputId = "set_perceived_distance",
-      #  label = "Set perceived distance",
-      #  min = 0,
-      #  max = 500,
-      #  value = 300
-      #)
-    )
   })
   
    observeEvent(input$set_style, {
