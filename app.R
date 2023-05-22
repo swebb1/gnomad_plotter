@@ -25,8 +25,9 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 tabPanel("Inputs", fluid = TRUE,
                     br(),
                     fileInput(inputId = "gnomad_file",label = "Upload Gnomad CSV File"),
-                    textInput("pname","Protein Name",value = "DNMT3A1"),
-                    numericInput("plength","Protein Length",value = 912),
+                    textInput("pid","Uniprot ID",value = "Q9Y6K1"),
+                    uiOutput("pinfo"),
+                    #numericInput("plength","Protein Length",value = 912),
                     uiOutput("plotting")
                 ),
                 tabPanel("Domains", fluid = TRUE,
@@ -91,10 +92,18 @@ server <- function(input, output) {
   
   ## Plotting colours
   domain_fill = "#5ABCB9"
-  cols<-c("#FE5F55","#99C24D","#FFB703","#219EBC","#1D3461","#885053","#FB8500")
+  cols<-c("#777DA7","#FE5F55","#99C24D","#FFB703","#219EBC","#1D3461","#885053","#FB8500")
   ms_col="#777DA7"
     
   cols_3d = RColorBrewer::brewer.pal(name="Blues",n=9)[4:9]
+  
+  output$pinfo = renderUI({
+    uniprot_info = GetProteinAnnontate(input$pid,columns = c("length","gene_names"))
+    tagList(
+      textInput("pname","Protein Name",uniprot_info[2]),
+      numericInput("plength","Protein Length",uniprot_info[1],min=1)
+    )
+  })
   
   output$plotting = renderUI({
     tagList(
@@ -108,7 +117,7 @@ server <- function(input, output) {
   
   output$molplotting = renderUI({
     tagList(
-      textInput("pdbid","PDB ID","Q9Y6K1"),
+      textInput("pid2","Uniprot ID","Q9Y6K1"),
       checkboxInput("spin","Spin",value = F),
       checkboxInput("labels","Labels",value = F),
       numericInput("first","First Residue Selection",value = 1,max = input$plength,min=0),
@@ -328,7 +337,7 @@ server <- function(input, output) {
     bind_rows(mut,anno()) |> 
       mutate(Annotation=as.factor(Annotation) %>% fct_relevel("MissenseVariant")) |>
       group_by(Annotation) |>
-      mutate(y = cur_group_id())
+      mutate(y = cur_group_id()-1)
     
   })
   
@@ -336,7 +345,7 @@ server <- function(input, output) {
   ## Plot protein
   proteinPlot1d = eventReactive(input$plot,{
       
-    p = annotation() |> filter(Annotation=="MissenseVariant") |> ggplot() +
+    p = annotation() |> ggplot() +
                 geom_rect(xmin = 0,xmax=input$plength,ymin=-0.2,ymax=0.2,fill="darkgrey")+
                 theme_bw()+
                 scale_x_continuous(breaks = seq(0,input$plength,input$breaks),labels = seq(0,input$plength,input$breaks))+
@@ -352,9 +361,10 @@ server <- function(input, output) {
                       panel.grid.minor = element_blank(),
                       panel.background = element_blank()
                 ) +
-                geom_tile(aes(x=Start,y=1.5),colour=ms_col,fill=ms_col,alpha=0.5)+
-                geom_point(data = annotation() |> filter(!Annotation=="MissenseVariant"),aes(x=Start,colour=Annotation,y=y+1.5),alpha=0.5,size=3)+
+                geom_tile(aes(x=Start,y=y+1.5,colour=Annotation,fill=Annotation),alpha=0.5)+
+                #geom_tile(data = annotation() |> filter(!Annotation=="MissenseVariant"),aes(x=Start,colour=Annotation,fill=Annotation,y=y+1.5),alpha=0.5)+
                 scale_colour_manual(values = cols)+
+                scale_fill_manual(values = cols)+
                 coord_cartesian(ylim=c(-1,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
                 labs(title = input$pname)
     
@@ -424,8 +434,8 @@ server <- function(input, output) {
   ## Get the 3D model from AF database and generate model
   output$r3dmol = renderR3dmol({
     
-   if(!is.null(input$pdbid)){
-    pid = input$pdbid
+   if(!is.null(input$pid2)){
+    pid = input$pid2
     
     r3dmol(                         # Set up the initial viewer
       viewer_spec = m_viewer_spec(
@@ -444,7 +454,7 @@ server <- function(input, output) {
   
   observeEvent(input$selectSpheres,{
     
-    if(!is.null(input$pdbid)){
+    if(!is.null(input$pid2)){
       
       style <- switch(
         input$set_style,
@@ -524,7 +534,7 @@ server <- function(input, output) {
   ## Turn on/off labels for selections
   observeEvent(input$labels,{
     
-    if(!is.null(input$pdbid)){
+    if(!is.null(input$pid2)){
       if(input$labels==T){
         sel = selections()
         
@@ -647,7 +657,7 @@ server <- function(input, output) {
     sel = selections()
     i = 1:6  
     ps = "bg_color white\ncolor white, DNMT3A1\nutil.performance(0)\nspace rgb\nset ray_shadows,off\n"
-    pss = i |> map(~paste0("select s",.x," (((i;",paste(sort(sel[[.x]]),collapse = ","),") and n; CA) and ",pname,"\n"))  |> reduce(paste0)
+    pss = i |> map(~paste0("select s",.x," (((i;",paste(sort(sel[[.x]]),collapse = ","),") and n; CA) and ",pid2,"\n"))  |> reduce(paste0)
     ps = paste0(ps,pss,"show spheres, (s1,s2,s3,s4,s5,s6)\nset sphere_scale, 1.15, s1\nset sphere_scale, 1.50, s2\nset sphere_scale, 1.85, s3\nset sphere_scale, 2.15, s4\nset sphere_scale, 2.50, s5\nset sphere_scale, 2.85, s6\nset_color b1, [100,120,250]\nset_color b2, [35,40,200]\nset_color b3, [18,0,150]\nset_color b4, [9,0,100]\nset_color b5, [0,0,50]\nset_color b6, [0,0,0]\ncolor b1, s1\ncolor b2, s2\ncolor b3, s3\ncolor b4, s4\ncolor b5, s5\ncolor b6, s6\n")
     ps
   })
@@ -655,10 +665,10 @@ server <- function(input, output) {
   ## Download protein plot file
   output$pymol <- downloadHandler(
     filename = function() {
-      paste0(input$pname,".pymol")
+      paste0(input$pid2,".pymol")
     },
     content = function(file) {
-      if(!is.null(input$pdbid)){
+      if(!is.null(input$pid2)){
         ps=pymolScript()
         write(ps,file = file)
       }
