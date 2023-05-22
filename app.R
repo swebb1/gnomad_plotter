@@ -12,6 +12,8 @@ library(svglite)
 library(patchwork)
 library(r3dmol)
 library(forcats)
+library(UniprotR)
+library(bio3d)
 
 # Define UI
 ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswatch = "yeti"), 
@@ -341,6 +343,11 @@ server <- function(input, output) {
     
   })
   
+  consurf = reactive({
+    pdb = read.pdb("test_data/AF-Q12906-F1-model_v4_ATOMS_section_With_ConSurf (1).pdb",ATOM.only = T)
+    pdb$atom |> select(resid,resno,score=o) |> unique()
+  })
+  
 
   ## Plot protein
   proteinPlot1d = eventReactive(input$plot,{
@@ -362,7 +369,7 @@ server <- function(input, output) {
                       panel.background = element_blank()
                 ) +
                 geom_tile(aes(x=Start,y=y+1.5,colour=Annotation,fill=Annotation),alpha=0.5)+
-                #geom_tile(data = annotation() |> filter(!Annotation=="MissenseVariant"),aes(x=Start,colour=Annotation,fill=Annotation,y=y+1.5),alpha=0.5)+
+                #geom_tile(data = consurf(), aes(x=resno,colour=score,fill=score,y=-1),alpha=0.5)+
                 scale_colour_manual(values = cols)+
                 scale_fill_manual(values = cols)+
                 coord_cartesian(ylim=c(-1,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
