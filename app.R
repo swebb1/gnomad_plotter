@@ -356,6 +356,7 @@ server <- function(input, output) {
       tryCatch(
         {
           pdbF = read.pdb(input$consurf_file$datapath,ATOM.only = T)
+          pdbF$atom |> select(resid,resno,score=b) |> unique()
         },
         error = function(e){
           message("Cannot upload file")
@@ -368,11 +369,10 @@ server <- function(input, output) {
       )
     }
     else{
+      NULL
       ## Default file
-      pdbF = read.pdb("test_data/AF-Q12906-F1-model_v4_ATOMS_section_With_ConSurf.pdb",ATOM.only = T)
+      #pdbF = read.pdb("test_data/AF-Q12906-F1-model_v4_ATOMS_section_With_ConSurf.pdb",ATOM.only = T)
     }
-    
-    pdbF$atom |> select(resid,resno,score=b) |> unique()
     
   })
   
@@ -400,11 +400,16 @@ server <- function(input, output) {
                 geom_point(aes(x=Start,y=y+1,colour=Annotation),alpha=0.5,shape="|",size=7)+
                 #geom_tile(aes(x=Start,y=y+1.5,colour=Annotation,fill=Annotation),alpha=0.5)+
                 scale_colour_manual(values = cols)+
-                new_scale_colour()+
-                geom_point(data = consurf(), aes(x=resno,colour=as.character(score),y=-1),alpha=0.5,shape="|",size=7,show.legend = F)+
-                scale_colour_manual(values = consurf_cols,)+
-                coord_cartesian(ylim=c(-2,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
+                coord_cartesian(ylim=c(-1,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
                 labs(title = input$pname)
+    
+    if(!is.null(consurf())){
+      p = p + 
+        new_scale_colour()+
+        geom_point(data = consurf(), aes(x=resno,colour=as.character(score),y=-1),alpha=0.5,shape="|",size=7,show.legend = F)+
+        scale_colour_manual(values = consurf_cols,)+
+        coord_cartesian(ylim=c(-2,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))
+    }
     
     if(nrow(arch())>0){
       p = p + 
