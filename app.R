@@ -14,11 +14,12 @@ library(r3dmol)
 library(forcats)
 library(UniprotR)
 library(bio3d)
+library(ggnewscale)
 
 # Define UI
 ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswatch = "yeti"), 
   #includeCSS("www/custom.css"),
-  tabPanel("1D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 800px",
+  tabPanel("1D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 1200px",
            fluidRow(
            column(width = 3,
               h4("Configure"),
@@ -65,7 +66,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
             )
            )
       ),
-      tabPanel("3D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 1000px",
+      tabPanel("3D Plot",fluid = TRUE, style = "overflow-y:scroll; max-height: 1200px",
             fluidRow(
             column(width = 3,
                 h4("Configure"),
@@ -96,6 +97,7 @@ server <- function(input, output) {
   domain_fill = "#5ABCB9"
   cols<-c("#777DA7","#FE5F55","#99C24D","#FFB703","#219EBC","#1D3461","#885053","#FB8500")
   ms_col="#777DA7"
+  consurf_cols = c("1"="#10C8D2","2"="#89FDFD","3"="#D8FDFE","4"="#EAFFFF","5"="#FFFFFF","6"="#FBECF1","7"="#FAC9DE","8"="#F27EAB","9"="#A22664")
     
   cols_3d = RColorBrewer::brewer.pal(name="Blues",n=9)[4:9]
   
@@ -344,8 +346,8 @@ server <- function(input, output) {
   })
   
   consurf = reactive({
-    pdb = read.pdb("test_data/AF-Q12906-F1-model_v4_ATOMS_section_With_ConSurf (1).pdb",ATOM.only = T)
-    pdb$atom |> select(resid,resno,score=o) |> unique()
+    pdb = read.pdb("test_data/AF-Q12906-F1-model_v4_ATOMS_section_With_ConSurf.pdb",ATOM.only = T)
+    pdb$atom |> select(resid,resno,score=b) |> unique()
   })
   
 
@@ -366,13 +368,16 @@ server <- function(input, output) {
                       axis.ticks.y=element_blank(),
                       panel.grid.major = element_blank(),
                       panel.grid.minor = element_blank(),
-                      panel.background = element_blank()
+                      panel.background = element_blank(),
+                      panel.margin = margin(2, 2, 2, 2, "cm")
                 ) +
-                geom_tile(aes(x=Start,y=y+1.5,colour=Annotation,fill=Annotation),alpha=0.5)+
-                #geom_tile(data = consurf(), aes(x=resno,colour=score,fill=score,y=-1),alpha=0.5)+
+                geom_point(aes(x=Start,y=y+1,colour=Annotation),alpha=0.5,shape="|",size=7)+
+                #geom_tile(aes(x=Start,y=y+1.5,colour=Annotation,fill=Annotation),alpha=0.5)+
                 scale_colour_manual(values = cols)+
-                scale_fill_manual(values = cols)+
-                coord_cartesian(ylim=c(-1,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
+                new_scale_colour()+
+                geom_point(data = consurf(), aes(x=resno,colour=as.character(score),y=-1),alpha=0.5,shape="|",size=7,show.legend = F)+
+                scale_colour_manual(values = consurf_cols,)+
+                coord_cartesian(ylim=c(-2,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
                 labs(title = input$pname)
     
     if(nrow(arch())>0){
