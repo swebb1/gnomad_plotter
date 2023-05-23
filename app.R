@@ -386,7 +386,7 @@ server <- function(input, output) {
                 scale_x_continuous(breaks = seq(0,input$plength,input$breaks),labels = seq(0,input$plength,input$breaks))+
                 theme(axis.text.x = element_text(vjust = 1,angle = 90,size = 15),
                       legend.text = element_text(size = 20),
-                      legend.title = element_text(size = 25),
+                      legend.title = element_text(size = 15),
                       plot.title = element_text(size = 25),
                       axis.title.x=element_blank(),
                       axis.title.y=element_blank(),
@@ -406,8 +406,10 @@ server <- function(input, output) {
     if(!is.null(consurf())){
       p = p + 
         new_scale_colour()+
-        geom_point(data = consurf(), aes(x=resno,colour=as.character(score),y=-1),alpha=0.8,shape="|",size=7,show.legend = F)+
-        scale_colour_manual(values = consurf_cols,)+
+        geom_point(data = consurf(), aes(x=resno,colour=score,y=-1),alpha=0.8,shape="|",size=7)+
+        scale_colour_gradientn(colours = consurf_cols,guide = guide_colourbar(direction = "horizontal",title.position = "top",label.theme = element_text(size = 10))) +
+        labs(colour = "Consurf")+
+        #scale_colour_manual(values = consurf_cols,)+
         coord_cartesian(ylim=c(-2,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))
     }
     
