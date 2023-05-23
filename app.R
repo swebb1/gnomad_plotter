@@ -397,7 +397,7 @@ server <- function(input, output) {
                       panel.background = element_blank(),
                       panel.margin = margin(2, 2, 2, 2, "cm")
                 ) +
-                geom_point(aes(x=Start,y=y+1,colour=Annotation),alpha=0.5,shape="|",size=7)+
+                geom_point(aes(x=Start,y=y+1,colour=Annotation),alpha=0.8,shape="|",size=7)+
                 #geom_tile(aes(x=Start,y=y+1.5,colour=Annotation,fill=Annotation),alpha=0.5)+
                 scale_colour_manual(values = cols)+
                 coord_cartesian(ylim=c(-1,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))+
@@ -406,7 +406,7 @@ server <- function(input, output) {
     if(!is.null(consurf())){
       p = p + 
         new_scale_colour()+
-        geom_point(data = consurf(), aes(x=resno,colour=as.character(score),y=-1),alpha=0.5,shape="|",size=7,show.legend = F)+
+        geom_point(data = consurf(), aes(x=resno,colour=as.character(score),y=-1),alpha=0.8,shape="|",size=7,show.legend = F)+
         scale_colour_manual(values = consurf_cols,)+
         coord_cartesian(ylim=c(-2,max(annotation()$y)+2),xlim=c(input$xmin,input$xmax))
     }
