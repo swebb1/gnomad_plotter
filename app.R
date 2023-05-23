@@ -27,11 +27,15 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
               tabsetPanel(type = "tabs",
                 tabPanel("Inputs", fluid = TRUE,
                     br(),
-                    fileInput(inputId = "gnomad_file",label = "Upload Gnomad CSV File"),
                     textInput("pid","Uniprot ID",value = "Q9Y6K1"),
                     uiOutput("pinfo"),
                     #numericInput("plength","Protein Length",value = 912),
                     uiOutput("plotting")
+                ),
+                tabPanel("Uploads", fluid = TRUE,
+                    br(),
+                    fileInput(inputId = "gnomad_file",label = "Upload Gnomad csv file"),
+                    fileInput(inputId = "consurf_file",label = "Upload Consurf pdb file")
                 ),
                 tabPanel("Domains", fluid = TRUE,
                     br(),
@@ -115,7 +119,7 @@ server <- function(input, output) {
       numericInput("xmax","X-maximum",input$plength,min = 1),
       numericInput("breaks","X-breaks",50),
       numericInput("vdvp_win","vD/vP Window Size",value = 0.02),
-      helpText("Window size is a fraction of the protein length")
+      helpText("Window size: Integer = fixed length, < 1 = fraction of the protein length")
     )
   })
   
@@ -346,8 +350,30 @@ server <- function(input, output) {
   })
   
   consurf = reactive({
-    pdb = read.pdb("test_data/AF-Q12906-F1-model_v4_ATOMS_section_With_ConSurf.pdb",ATOM.only = T)
-    pdb$atom |> select(resid,resno,score=b) |> unique()
+    
+    pdbF = NULL
+    if(!is.null(input$consurf_file)){
+      tryCatch(
+        {
+          pdbF = read.pdb(input$consurf_file$datapath,ATOM.only = T)
+        },
+        error = function(e){
+          message("Cannot upload file")
+          showModal(modalDialog(
+            title = "Error",
+            "Cannot upload file"
+          ))
+          return(NULL)
+        }
+      )
+    }
+    else{
+      ## Default file
+      pdbF = read.pdb("test_data/AF-Q12906-F1-model_v4_ATOMS_section_With_ConSurf.pdb",ATOM.only = T)
+    }
+    
+    pdbF$atom |> select(resid,resno,score=b) |> unique()
+    
   })
   
 
