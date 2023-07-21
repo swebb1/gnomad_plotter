@@ -202,7 +202,7 @@ server <- function(input, output) {
       if(!is.null(input$gnomad_file)){
         tryCatch(
           {
-            gnomadF = read_csv(input$gnomad_file$datapath,col_names = c("Name","Start","End"))
+            gnomadF = read_csv(input$gnomad_file$datapath,col_names = T)
           },
           error = function(e){
             message("Cannot upload file")
