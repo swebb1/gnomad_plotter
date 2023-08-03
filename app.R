@@ -219,8 +219,11 @@ server <- function(input, output) {
         gnomadF = read_csv("test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T)
       }
       
+      ## Auto-detect v2 and v3 files
+      
+      
       gnomadF |> filter(`VEP Annotation` == "missense_variant",
-             `Filters - exomes` == "PASS",
+             #`Filters - exomes` == "PASS",
              !`ClinVar Clinical Significance` %in% clinVar) |>
       mutate(`Protein Consequence` = str_remove(`Protein Consequence`,"^p.")) |>
       mutate(Original_Res = pc[str_sub(`Protein Consequence`,1,3)],
