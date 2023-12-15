@@ -487,7 +487,7 @@ server <- function(input, output) {
     
     r3dmol(                         # Set up the initial viewer
       viewer_spec = m_viewer_spec(
-        cartoonQuality = 50,
+        cartoonQuality = 25,
         lowerZoomLimit = 5,
         upperZoomLimit = 1000
       )
@@ -521,7 +521,7 @@ server <- function(input, output) {
       if(input$last>0){
         sel = selections()
         
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[1]],atom = "CA"),      
           style = m_style_sphere(
@@ -530,7 +530,7 @@ server <- function(input, output) {
             radius = 1.15
           )
         )
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[2]],atom = "CA"),      
           style = m_style_sphere(
@@ -539,7 +539,7 @@ server <- function(input, output) {
             radius = 1.5
           )
         )
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[3]],atom = "CA"),      
           style = m_style_sphere(
@@ -548,7 +548,7 @@ server <- function(input, output) {
             radius = 1.85
           )
         ) 
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[4]],atom = "CA"),      
           style = m_style_sphere(
@@ -557,7 +557,7 @@ server <- function(input, output) {
             radius = 2.15
           )
         ) 
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[5]],atom = "CA"),      
           style = m_style_sphere(
@@ -566,7 +566,7 @@ server <- function(input, output) {
             radius = 2.5
           )
         ) 
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[6]],atom = "CA"),      
           style = m_style_sphere(
@@ -667,10 +667,10 @@ server <- function(input, output) {
        "Sphere" = list(sphere = list())
      )
      
-     sel = selections()
+     #sel = selections()
      
      m_set_style(id = "r3dmol",
-                 sel = m_sel(resi = unlist(sel,use.names = F),atom="CA",invert = T),
+                 #sel = m_sel(resi = unlist(sel,use.names = F),atom="CA",invert = T),
                  #sel = m_sel(resi = c(1:input$plength)[-c(unlist(sel))],invert = F),
                  style = style
      )
