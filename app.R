@@ -202,7 +202,7 @@ server <- function(input, output) {
       if(!is.null(input$gnomad_file)){
         tryCatch(
           {
-            gnomadF = read_csv(input$gnomad_file$datapath,col_names = c("Name","Start","End"))
+            gnomadF = read_csv(input$gnomad_file$datapath,col_names = T)
           },
           error = function(e){
             message("Cannot upload file")
@@ -219,8 +219,11 @@ server <- function(input, output) {
         gnomadF = read_csv("test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T)
       }
       
+      ## Auto-detect v2 and v3 files
+      
+      
       gnomadF |> filter(`VEP Annotation` == "missense_variant",
-             `Filters - exomes` == "PASS",
+             #`Filters - exomes` == "PASS",
              !`ClinVar Clinical Significance` %in% clinVar) |>
       mutate(`Protein Consequence` = str_remove(`Protein Consequence`,"^p.")) |>
       mutate(Original_Res = pc[str_sub(`Protein Consequence`,1,3)],
@@ -484,7 +487,7 @@ server <- function(input, output) {
     
     r3dmol(                         # Set up the initial viewer
       viewer_spec = m_viewer_spec(
-        cartoonQuality = 50,
+        cartoonQuality = 25,
         lowerZoomLimit = 5,
         upperZoomLimit = 1000
       )
@@ -518,7 +521,7 @@ server <- function(input, output) {
       if(input$last>0){
         sel = selections()
         
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[1]],atom = "CA"),      
           style = m_style_sphere(
@@ -527,7 +530,7 @@ server <- function(input, output) {
             radius = 1.15
           )
         )
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[2]],atom = "CA"),      
           style = m_style_sphere(
@@ -536,7 +539,7 @@ server <- function(input, output) {
             radius = 1.5
           )
         )
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[3]],atom = "CA"),      
           style = m_style_sphere(
@@ -545,7 +548,7 @@ server <- function(input, output) {
             radius = 1.85
           )
         ) 
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[4]],atom = "CA"),      
           style = m_style_sphere(
@@ -554,7 +557,7 @@ server <- function(input, output) {
             radius = 2.15
           )
         ) 
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[5]],atom = "CA"),      
           style = m_style_sphere(
@@ -563,7 +566,7 @@ server <- function(input, output) {
             radius = 2.5
           )
         ) 
-        m_set_style(
+        m_add_style(
           id="r3dmol",
           sel = m_sel(resi = sel[[6]],atom = "CA"),      
           style = m_style_sphere(
@@ -664,10 +667,10 @@ server <- function(input, output) {
        "Sphere" = list(sphere = list())
      )
      
-     sel = selections()
+     #sel = selections()
      
      m_set_style(id = "r3dmol",
-                 sel = m_sel(resi = unlist(sel,use.names = F),atom="CA",invert = T),
+                 #sel = m_sel(resi = unlist(sel,use.names = F),atom="CA",invert = T),
                  #sel = m_sel(resi = c(1:input$plength)[-c(unlist(sel))],invert = F),
                  style = style
      )
@@ -702,7 +705,7 @@ server <- function(input, output) {
     sel = selections()
     i = 1:6  
     ps = "bg_color white\ncolor white, DNMT3A1\nutil.performance(0)\nspace rgb\nset ray_shadows,off\n"
-    pss = i |> map(~paste0("select s",.x," (((i;",paste(sort(sel[[.x]]),collapse = ","),") and n; CA) and ",pid2,"\n"))  |> reduce(paste0)
+    pss = i |> map(~paste0("select s",.x," (((i;",paste(sort(sel[[.x]]),collapse = ","),") and n; CA) and ",input$pid2,"\n"))  |> reduce(paste0)
     ps = paste0(ps,pss,"show spheres, (s1,s2,s3,s4,s5,s6)\nset sphere_scale, 1.15, s1\nset sphere_scale, 1.50, s2\nset sphere_scale, 1.85, s3\nset sphere_scale, 2.15, s4\nset sphere_scale, 2.50, s5\nset sphere_scale, 2.85, s6\nset_color b1, [100,120,250]\nset_color b2, [35,40,200]\nset_color b3, [18,0,150]\nset_color b4, [9,0,100]\nset_color b5, [0,0,50]\nset_color b6, [0,0,0]\ncolor b1, s1\ncolor b2, s2\ncolor b3, s3\ncolor b4, s4\ncolor b5, s5\ncolor b6, s6\n")
     ps
   })
