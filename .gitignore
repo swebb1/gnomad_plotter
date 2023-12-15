@@ -7,8 +7,5 @@
 .RData
 .Ruserdata
 renv/library
-<<<<<<< HEAD
 test_data
-=======
 test_data/AF-Q12906-F1-model_v4_ATOMS_section_With_ConSurf.pdb
->>>>>>> 8c939c5c2f4782bd8f77272ebb191230304f84ca
