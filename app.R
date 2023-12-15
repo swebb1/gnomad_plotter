@@ -385,8 +385,8 @@ server <- function(input, output) {
                 theme_bw()+
                 scale_x_continuous(breaks = seq(0,input$plength,input$breaks),labels = seq(0,input$plength,input$breaks))+
                 theme(axis.text.x = element_text(vjust = 1,angle = 90,size = 15),
-                      legend.text = element_text(size = 20),
-                      legend.title = element_text(size = 15),
+                      legend.text = element_text(size = 15),
+                      legend.title = element_text(size = 20),
                       plot.title = element_text(size = 25),
                       axis.title.x=element_blank(),
                       axis.title.y=element_blank(),
