@@ -1,10 +1,12 @@
-library("httr2")
-library("jsonlite")
+library(httr2)
+library(jsonlite)
+library(UniprotR)
+library(tidyverse)
 
-seq = "MVHLTPEEKSAVTALWGKVNVDEVGG"
+pid="Q9Y6K1"
+seq=GetProteinAnnontate(pid,columns = c("sequence"))
 
 myseq = paste0(">myseq\n",seq)
-
 
 req <- request("http://protein.bio.unipd.it/fellsws/submit") |> 
   req_headers("Content-Type" = "multipart/form-data") |>
@@ -38,12 +40,31 @@ df <- data.frame(index = seq(1,str_length(seq),1),
                  Strand=as.numeric(pstrand),
                  Coil=as.numeric(pcoil)) |>
   mutate(Coil = Coil * -1) |>
-  pivot_longer(-index)
+  pivot_longer(-index) |> 
+  mutate(alpha=case_when(name=="Coil"~value*-1,.default=value)) |>
+  mutate(alphag=cut_interval(alpha,n=5))
 
 hsc_cols = c(Helix="#99004D",Strand="#FF9900",Coil="#878787")
 
-df |> ggplot(aes(index,value,fill=name))+
-  geom_col(position = "identity",alpha=0.5) +
+p<-df |> ggplot(aes(index,value,fill=name,alpha=alpha))+
+  geom_col(position = "identity") +
   scale_fill_manual(values = hsc_cols)+
   theme_minimal()
 
+library(plotly)
+ggplotly(p)
+
+df2 <- data.frame(index = seq(1,str_length(seq),1),
+                 `Hydrophobic Cluster Analysis`=as.numeric(hca),
+                 Disorder=as.numeric(dis)) |>
+  mutate(Disorder = Disorder * -1) |>
+  pivot_longer(-index) |> 
+  mutate(alpha=case_when(name=="Disorder"~value*-1,.default=value)) |>
+  mutate(alphag=cut_interval(alpha,n=5))
+
+dh_cols = c(Disorder="#FF0000", Hydrophobic.Cluster.Analysis="#0F0F0F")
+
+p<-df2 |> ggplot(aes(index,value,fill=name,alpha=alpha))+
+  geom_col(position = "identity") +
+  scale_fill_manual(values = dh_cols)+
+  theme_minimal()

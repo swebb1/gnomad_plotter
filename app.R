@@ -15,6 +15,9 @@ library(forcats)
 library(UniprotR)
 library(bio3d)
 library(ggnewscale)
+library(httr2)
+library(jsonlite)
+
 
 # Define UI
 ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswatch = "yeti"), 
@@ -35,7 +38,8 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 tabPanel("Uploads", fluid = TRUE,
                     br(),
                     fileInput(inputId = "gnomad_file",label = "Upload Gnomad csv file"),
-                    fileInput(inputId = "consurf_file",label = "Upload Consurf pdb file")
+                    fileInput(inputId = "consurf_file",label = "Upload Consurf pdb file"),
+                    uiOutput("fellsUI")
                 ),
                 tabPanel("Domains", fluid = TRUE,
                     br(),
@@ -54,7 +58,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
             ),
             column(width = 8,
                 h4("1D Plot"),
-                tags$div(style="height: 400px",
+                tags$div(style="height: 800px",
                 uiOutput("pplot"),
                 ),
                 h4("Download"),
@@ -102,7 +106,12 @@ server <- function(input, output) {
   cols<-c("#777DA7","#FE5F55","#99C24D","#FFB703","#219EBC","#1D3461","#885053","#FB8500")
   ms_col="#777DA7"
   consurf_cols = c("1"="#10C8D2","2"="#89FDFD","3"="#D8FDFE","4"="#EAFFFF","5"="#FFFFFF","6"="#FBECF1","7"="#FAC9DE","8"="#F27EAB","9"="#A22664")
-    
+
+  ## FELLS Colour
+  dh_cols = c(Disorder="#FF0000", HCA="#0F0F0F")
+  hsc_cols = c(Helix="#99004D",Strand="#FF9900",Coil="#878787")
+  
+  ## 3D colours  
   cols_3d = RColorBrewer::brewer.pal(name="Blues",n=9)[4:9]
   
   output$pinfo = renderUI({
@@ -134,6 +143,104 @@ server <- function(input, output) {
       br(),
     )    
   })
+  
+  ####### FELLS
+  
+  fells_job = reactiveVal()
+  fells_result = reactiveVal()
+  fells_class = reactiveVal("btn-primary")
+  
+  output$fellsUI <- renderUI(
+    tagList(
+      actionButton("fells",label = "Submit to FELLS",class = fells_class())
+    )
+  )
+  
+  observeEvent(input$fells,{
+    
+    seq=GetProteinAnnontate(input$pid,columns = c("sequence"))
+    pseq = paste0(">",input$pid,"\n",seq)
+    
+    req <- request("http://protein.bio.unipd.it/fellsws/submit") |> 
+      req_headers("Content-Type" = "multipart/form-data") |>
+      req_body_multipart(sequence = pseq)
+    
+    resp <- req_perform(req)
+    rb = resp |> resp_body_json()
+    fells_job(rb$jobid)
+    
+    showModal(modalDialog(title = "FELLS job submitted"))
+    
+    job = fells_job()
+    status = "submitted"
+    fells_class("btn-warning")
+    updateActionButton(inputId = "fells",label = "FELLS submitted")
+    while(!status=="done"){
+      Sys.sleep(10) 
+      req <- request(paste0("http://protein.bio.unipd.it/fellsws/status/",job))
+      resp = req_perform(req)
+      rb = resp |> resp_body_json()
+      status = rb$status
+    }
+    
+    if(status=="done"){
+      result = rb$names[[1]][[2]]
+      
+      req2 <- request(paste0("http://protein.bio.unipd.it/fellsws/result/",result))
+      res2 = req_perform(req2)
+      rb2 = res2 |> resp_body_json()
+      fells_result(rb2)
+      
+      showModal(modalDialog(title = "FELLS job complete"))
+      updateActionButton(inputId = "fells",label = "FELLS complete")
+      fells_class("btn-success")
+    }
+    else({
+      showModal(modalDialog(title = "FELLS job failed"))
+      updateActionButton(inputId = "fells",label = "FELLS failed")
+      fells_class("btn-danger")
+    })
+    
+  })
+  
+  fells_hd <- reactive({
+    
+    fr = fells_result()
+    
+    hca = fr$hca |> unlist()
+    dis = fr$p_dis |> unlist()
+    
+    df <- data.frame(index = seq(1,input$plength,1),
+                      HCA=as.numeric(hca),
+                      Disorder=as.numeric(dis)) |>
+      mutate(Disorder = Disorder * -1) |>
+      pivot_longer(-index) |> 
+      mutate(alpha=case_when(name=="Disorder"~value*-1,.default=value)) |>
+      mutate(alphag=cut_interval(alpha,n=5))
+    
+    df
+  })
+  
+  fells_hsc <- reactive({
+    
+    fr = fells_result()
+    
+    phelix = fr$p_h |> unlist()
+    pstrand = fr$p_e |> unlist()
+    pcoil = fr$p_c |> unlist()
+    
+    df <- data.frame(index = seq(1,input$plength,1),
+                     Helix=as.numeric(phelix),
+                     Strand=as.numeric(pstrand),
+                     Coil=as.numeric(pcoil)) |>
+      mutate(Coil = Coil * -1) |>
+      pivot_longer(-index) |> 
+      mutate(alpha=case_when(name=="Coil"~value*-1,.default=value)) |>
+      mutate(alphag=cut_interval(alpha,n=5))
+    df
+  })
+  
+  #############
   
   ## Extra settings for 3dmol
   output$plot_settings_3d <- renderUI({
@@ -434,13 +541,29 @@ server <- function(input, output) {
             axis.title.y = element_text(margin = margin(r = 15), size = 20))+
       coord_cartesian(xlim=c(input$xmin,input$xmax))
     
-    p/p2+plot_layout(heights = c(3,1))
-    
+    if(fells_class()=="btn-success"){
+      p3 <- fells_hsc() |> ggplot(aes(index,value,fill=name,alpha=alpha))+
+        geom_col(position = "identity") +
+        scale_fill_manual(values = hsc_cols)+
+        guides(alpha="none")+
+        theme_minimal()
+      
+      p4 <- fells_hd() |> ggplot(aes(index,value,fill=name,alpha=alpha))+
+        geom_col(position = "identity") +
+        scale_fill_manual(values = dh_cols)+
+        guides(alpha="none")+
+        theme_minimal()
+      
+      p/p2/p3/p4+plot_layout(heights = c(4,1,1,1))
+    }
+    else{
+      p/p2+plot_layout(heights = c(3,1))
+    }
   })  
   
   output$proteinPlot = renderPlot({
     proteinPlot1d() 
-  })
+  },height=700)
   
   ## Download protein plot file
   output$save_pplot <- downloadHandler(
@@ -450,7 +573,11 @@ server <- function(input, output) {
     content = function(file) {
       if(!is.null(proteinPlot1d())){
         p <- proteinPlot1d()
-        ggsave(filename = file,plot = p,width = 20, height = 5+max(annotation()["y"]))
+        save_height = 5+max(annotation()["y"])
+        if(fells_class()=="btn-success"){
+          save_height = save_height + 10
+        }
+        ggsave(filename = file,plot = p,width = 20, height = save_height)
       }
     }
   )
