@@ -29,6 +29,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 tabPanel("Inputs", fluid = TRUE,
                     br(),
                     textInput("pid","Uniprot ID",value = "Q9Y6K1"),
+                    checkboxInput("api",label = "Use GNOMAD API",value = F),
                     uiOutput("pinfo"),
                     #numericInput("plength","Protein Length",value = 912),
                     uiOutput("plotting")
@@ -199,7 +200,7 @@ server <- function(input, output) {
   ## Gnomad API query
   query <- reactive({
     paste0('{\n  gene(gene_symbol: "', input$pname, '", reference_genome: GRCh38) {
-                  variants(dataset: ',"gnomad_r2_1",') {
+                  variants(dataset: ',"gnomad_r4",') {
                     variant_id
                     chrom
                     pos
@@ -245,8 +246,7 @@ server <- function(input, output) {
         )
       }
       else{
-        ## Default file
-        #gnomadF = read_csv("test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T)
+        if(input$api==T){
         
          jsondata <- request("https://gnomad.broadinstitute.org/api/?") %>%
             req_body_json(list(query=query(), variables="null")) %>%
@@ -264,6 +264,11 @@ server <- function(input, output) {
                   `ClinVar Clinical Significance` = clinical_significance,
                   `Allele Frequency` = af)
         
+        }
+        else{
+          ## Default file
+          gnomadF = read_csv("test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T)
+        }
       }
       
       ## Auto-detect v2 and v3 files?

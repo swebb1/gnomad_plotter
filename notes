@@ -11,8 +11,7 @@ GraphIQL
 Scale multiple proteins in one view
 Align to a specific residue number???
 
-Export CSV of VdVP
-
+DONE: Export CSV of VdVP
 DONE: Cartoon rep is fragmented - maybe missing missense or anything that is missense.
 DONE: PyMol download.
 

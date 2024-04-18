@@ -31,6 +31,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 tabPanel("Inputs", fluid = TRUE,
                     br(),
                     textInput("pid","Uniprot ID",value = "Q9Y6K1"),
+                    checkboxInput("api",label = "Use GNOMAD API",value = F),
                     uiOutput("pinfo"),
                     #numericInput("plength","Protein Length",value = 912),
                     uiOutput("plotting")
@@ -54,19 +55,23 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                     textAreaInput("anno","Paste Annotations"),
                     helpText("Annotations: name,position separated by comma"),
                 ),
+                tabPanel("Downloads", fluid = TRUE,
+                    br(),
+                    textInput("filename_pplot","Plot File Name",value = "Protein_plot.pdf"),
+                    downloadButton("save_pplot", "Download Plot"),
+                    helpText("Specify file format as suffix (.pdf,.svg,.png)"),
+                    textInput("filename_vdvp","VdVP File Name",value = "VdVp.csv"),
+                    downloadButton("save_vdvp", "Download VdVp"),
+                    textInput("filename_fells","FELLS File Name",value = "VdVp.csv"),
+                    downloadButton("save_fells", "Download FELLS")   
+                ),
               ),
             ),
             column(width = 8,
                 h4("1D Plot"),
                 tags$div(style="height: 800px",
-                uiOutput("pplot"),
-                ),
-                h4("Download"),
-                textInput("filename_pplot","File Name",value = "Protein_plot.pdf"),
-                downloadButton("save_pplot", "Download Plot"),
-                helpText("Specify file format as suffix (.pdf,.svg,.png)"),
-                textInput("filename_vdvp","File Name",value = "VdVp.csv"),
-                downloadButton("save_vdvp", "Download VdVp")
+                  uiOutput("pplot"),
+                )
             ),
             column(width = 1,
                 actionButton("plot","Plot",
@@ -303,7 +308,34 @@ server <- function(input, output) {
   clinVar = c("Uncertain significance","Likely pathogenic","Pathogenic",
                       "Conflicting interpretations of pathogenicity")
   
-  
+  ## Gnomad API query
+  query <- reactive({
+    paste0('{\n  gene(gene_symbol: "', input$pname, '", reference_genome: GRCh38) {
+                  variants(dataset: ',"gnomad_r4",') {
+                    variant_id
+                    chrom
+                    pos
+                    ref
+                    alt
+                    consequence
+                    hgvsp
+                    genome{
+                      ac
+                      an
+                    }
+                    exome{
+                      ac
+                      an
+                    }
+                  }
+                  clinvar_variants {
+                    variant_id
+                    clinical_significance
+                  }
+                }
+          }'
+    )
+  })
   ## Read in gnomad file and filter        
   gnomad = reactive({
     
@@ -324,12 +356,32 @@ server <- function(input, output) {
         )
       }
       else{
-        ## Default file
-        gnomadF = read_csv("test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T)
+        if(input$api==T){
+          
+          jsondata <- request("https://gnomad.broadinstitute.org/api/?") %>%
+            req_body_json(list(query=query(), variables="null")) %>%
+            req_perform() %>%
+            resp_body_json()
+          
+          gnomad_v<-jsondata$data$gene$variants |> map(~unlist(.x) |> t() |> as.data.frame()) |> bind_rows()
+          gnomad_c<-jsondata$data$gene$clinvar_variants |> map(~unlist(.x) |> t() |> as.data.frame()) |> bind_rows()
+          
+          gnomadF <- gnomad_v |> left_join(gnomad_c,by="variant_id") |>
+            mutate(across(starts_with(c("genome","exome")),~coalesce(as.numeric(.x),0))) |>
+            mutate(af = (genome.ac+exome.ac) / (genome.an+exome.an)) |>
+            select(`VEP Annotation` = consequence,
+                   `Protein Consequence` = hgvsp,
+                   `ClinVar Clinical Significance` = clinical_significance,
+                   `Allele Frequency` = af)
+          
+        }
+        else{
+          ## Default file
+          gnomadF = read_csv("test_data/Inputs/1-2-3-5_DNMT3A1_gnomad_file.csv",col_names = T)
+        }
       }
       
-      ## Auto-detect v2 and v3 files
-      
+      ## Auto-detect v2 and v3 files?
       
       gnomadF |> filter(`VEP Annotation` == "missense_variant",
              #`Filters - exomes` == "PASS",
