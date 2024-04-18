@@ -63,8 +63,10 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 ),
                 h4("Download"),
                 textInput("filename_pplot","File Name",value = "Protein_plot.pdf"),
-                downloadButton("save_pplot", "Download"),
-                helpText("Specify file format as suffix (.pdf,.svg,.png)")
+                downloadButton("save_pplot", "Download Plot"),
+                helpText("Specify file format as suffix (.pdf,.svg,.png)"),
+                textInput("filename_vdvp","File Name",value = "VdVp.csv"),
+                downloadButton("save_vdvp", "Download VdVp")
             ),
             column(width = 1,
                 actionButton("plot","Plot",
@@ -491,7 +493,7 @@ server <- function(input, output) {
   proteinPlot1d = eventReactive(input$plot,{
       
     p = annotation() |> ggplot() +
-                geom_rect(xmin = 0,xmax=input$plength,ymin=-0.2,ymax=0.2,fill="darkgrey")+
+                geom_rect(xmin = 0,xmax=input$plength,ymin=-0.1,ymax=0.1,fill="darkgrey")+
                 theme_bw()+
                 scale_x_continuous(breaks = seq(0,input$plength,input$breaks),labels = seq(0,input$plength,input$breaks))+
                 theme(axis.text.x = element_text(vjust = 1,angle = 90,size = 15),
@@ -578,6 +580,19 @@ server <- function(input, output) {
           save_height = save_height + 10
         }
         ggsave(filename = file,plot = p,width = 20, height = save_height)
+      }
+    }
+  )
+  
+  ## Download vdvp  file
+  output$save_vdvp <- downloadHandler(
+    filename = function() {
+      input$filename_vdvp
+    },
+    content = function(file) {
+      if(!is.null(proteinPlot1d())){
+        v <- vdvp()
+        write_csv(file = file,v)
       }
     }
   )
@@ -837,7 +852,7 @@ server <- function(input, output) {
     ps
   })
   
-  ## Download protein plot file
+  ## Download pymol file
   output$pymol <- downloadHandler(
     filename = function() {
       paste0(input$pid2,".pymol")
