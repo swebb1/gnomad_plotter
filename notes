@@ -5,17 +5,24 @@ MetaDom
 
 Alpha-Missense
 
-Gnomad - V4
-GraphIQL
-
 Scale multiple proteins in one view
 Align to a specific residue number???
+
+Gnomad - V4
+GraphIQL
+- Using version 4 of Gnomad
+- Exome annotations
+- Uses protein name, not uniprot ID so can be wrong protein (e.g. MECP2 P51608 and P51608-2)
+
+Downloads:
+Fells Data
+Gnomad File?
 
 DONE: Export CSV of VdVP
 DONE: Cartoon rep is fragmented - maybe missing missense or anything that is missense.
 DONE: PyMol download.
 
-FELLs data:
+DONE: FELLs data:
 - Secondary structure
 - Hydrophobic cluster
 http://old.protein.bio.unipd.it/fells/help
