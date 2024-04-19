@@ -31,14 +31,14 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 tabPanel("Inputs", fluid = TRUE,
                     br(),
                     textInput("pid","Uniprot ID",value = "Q9Y6K1"),
-                    checkboxInput("api",label = "Use GNOMAD API",value = F),
                     uiOutput("pinfo"),
                     #numericInput("plength","Protein Length",value = 912),
                     uiOutput("plotting")
                 ),
                 tabPanel("Uploads", fluid = TRUE,
                     br(),
-                    fileInput(inputId = "gnomad_file",label = "Upload Gnomad csv file"),
+                    selectInput("gnomad_upload",label = "Gnomad upload",choices = c("Upload","API")),
+                    uiOutput("gnomad_ui"),
                     fileInput(inputId = "consurf_file",label = "Upload Consurf pdb file"),
                     uiOutput("fellsUI")
                 ),
@@ -57,13 +57,7 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 ),
                 tabPanel("Downloads", fluid = TRUE,
                     br(),
-                    textInput("filename_pplot","Plot File Name",value = "Protein_plot.pdf"),
-                    downloadButton("save_pplot", "Download Plot"),
-                    helpText("Specify file format as suffix (.pdf,.svg,.png)"),
-                    textInput("filename_vdvp","VdVP File Name",value = "VdVp.csv"),
-                    downloadButton("save_vdvp", "Download VdVp"),
-                    textInput("filename_fells","FELLS File Name",value = "VdVp.csv"),
-                    downloadButton("save_fells", "Download FELLS")   
+                    uiOutput("downloads")
                 ),
               ),
             ),
@@ -129,6 +123,24 @@ server <- function(input, output) {
     )
   })
   
+  output$gnomad_ui = renderUI({
+    gnomad_trans = NULL
+    if(input$gnomad_upload=="API"){
+      gnomad_trans = gnomad_api() |> pull(`Transcript ID`) |> unique()
+      mane = gnomad_canonical_trans()
+      tagList(
+        selectInput("transcript",label = "Transcript",choices = gnomad_trans,
+                    selected = mane,
+                    multiple = F)
+      )
+    }
+    else{
+      tagList(
+        fileInput(inputId = "gnomad_file",label = "Upload Gnomad csv file")
+      )
+    }
+  })
+  
   output$plotting = renderUI({
     tagList(
       numericInput("xmin","X-minimum",0,min = 0),
@@ -149,6 +161,20 @@ server <- function(input, output) {
       actionButton("selectSpheres","Update Selection"),
       br(),
     )    
+  })
+  
+  output$downloads = renderUI({
+    tagList(
+      textInput("filename_pplot","Plot File Name",value = paste0(input$pid,"_protein_plot.pdf")),
+      downloadButton("save_pplot", "Download Plot"),
+      helpText("Specify file format as suffix (.pdf,.svg,.png)"),
+      textInput("filename_pplot","Plot File Name",value = paste0(input$pid,"_gnomad.tsv")),
+      downloadButton("save_gnomad", "Download Gnomad Data"),
+      textInput("filename_vdvp","VdVP File Name",value = paste0(input$pid,"_VdVp.csv")),
+      downloadButton("save_vdvp", "Download VdVp"),
+      textInput("filename_fells","FELLS File Name",value = paste0(input$pid,"_fells.rds")),
+      downloadButton("save_fells", "Download FELLS Data")
+    )
   })
   
   ####### FELLS
@@ -311,8 +337,12 @@ server <- function(input, output) {
   ## Gnomad API query
   query <- reactive({
     paste0('{\n  gene(gene_symbol: "', input$pname, '", reference_genome: GRCh38) {
+                  symbol
+                  name
+                  canonical_transcript_id
                   variants(dataset: ',"gnomad_r4",') {
                     variant_id
+                    transcript_id
                     chrom
                     pos
                     ref
@@ -336,6 +366,31 @@ server <- function(input, output) {
           }'
     )
   })
+  
+  gnomad_canonical_trans <- reactiveVal()
+
+  gnomad_api <- reactive({
+    jsondata <- request("https://gnomad.broadinstitute.org/api/?") %>%
+      req_body_json(list(query=query(), variables="null")) %>%
+      req_perform() %>%
+      resp_body_json()
+    
+    gnomad_v<-jsondata$data$gene$variants |> map(~unlist(.x) |> t() |> as.data.frame()) |> bind_rows()
+    gnomad_c<-jsondata$data$gene$clinvar_variants |> map(~unlist(.x) |> t() |> as.data.frame()) |> bind_rows()
+    
+    gnomad_canonical_trans(jsondata$data$gene$canonical_transcript_id)
+    
+    gnomadF <- gnomad_v |> left_join(gnomad_c,by="variant_id") |>
+      mutate(across(starts_with(c("genome","exome")),~coalesce(as.numeric(.x),0))) |>
+      mutate(af = (genome.ac+exome.ac) / (genome.an+exome.an)) |>
+      select(`VEP Annotation` = consequence,
+             `Protein Consequence` = hgvsp,
+             `ClinVar Clinical Significance` = clinical_significance,
+             `Allele Frequency` = af,
+             `Transcript ID` = transcript_id)
+    
+  }) 
+  
   ## Read in gnomad file and filter        
   gnomad = reactive({
     
@@ -356,24 +411,8 @@ server <- function(input, output) {
         )
       }
       else{
-        if(input$api==T){
-          
-          jsondata <- request("https://gnomad.broadinstitute.org/api/?") %>%
-            req_body_json(list(query=query(), variables="null")) %>%
-            req_perform() %>%
-            resp_body_json()
-          
-          gnomad_v<-jsondata$data$gene$variants |> map(~unlist(.x) |> t() |> as.data.frame()) |> bind_rows()
-          gnomad_c<-jsondata$data$gene$clinvar_variants |> map(~unlist(.x) |> t() |> as.data.frame()) |> bind_rows()
-          
-          gnomadF <- gnomad_v |> left_join(gnomad_c,by="variant_id") |>
-            mutate(across(starts_with(c("genome","exome")),~coalesce(as.numeric(.x),0))) |>
-            mutate(af = (genome.ac+exome.ac) / (genome.an+exome.an)) |>
-            select(`VEP Annotation` = consequence,
-                   `Protein Consequence` = hgvsp,
-                   `ClinVar Clinical Significance` = clinical_significance,
-                   `Allele Frequency` = af)
-          
+        if(input$gnomad_upload=="API"){
+          gnomadF = gnomad_api() |> filter(`Transcript ID` == input$transcript)
         }
         else{
           ## Default file
@@ -635,8 +674,35 @@ server <- function(input, output) {
       }
     }
   )
+
+  ## Download Gnomad file
+  output$save_gnomad <- downloadHandler(
+    filename = function() {
+      input$filename_gnomad
+    },
+    content = function(file) {
+      if(!is.null(proteinPlot1d())){
+        g <- gnomad()
+        write_tsv(file = file,g)
+      }
+    }
+  )
   
-  ## Download vdvp  file
+  ## Download FELLS file
+  output$save_vdvp <- downloadHandler(
+    filename = function() {
+      input$filename_fells
+    },
+    content = function(file) {
+      if(fells_class()=="btn-success"){
+        fr <- fells_result()
+        saveRDS(fr,file = file)
+      }
+    }
+  )
+  
+    
+  ## Download vdvp file
   output$save_vdvp <- downloadHandler(
     filename = function() {
       input$filename_vdvp

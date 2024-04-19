@@ -11,7 +11,7 @@ Align to a specific residue number???
 Gnomad - V4
 GraphIQL
 - Using version 4 of Gnomad
-- Exome annotations
+- Exome annotations?
 - Uses protein name, not uniprot ID so can be wrong protein (e.g. MECP2 P51608 and P51608-2)
 
 Downloads:
