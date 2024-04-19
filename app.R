@@ -44,7 +44,8 @@ ui<-navbarPage(title="Gnomadic",fluid = T,theme = bs_theme(version = 4, bootswat
                 ),
                 tabPanel("Domains", fluid = TRUE,
                     br(),
-                    fileInput(inputId = "arch_file",label = "Upload Protein Domain File"),
+                    selectInput("arch_upload",label = "Protein domain upload",choices = c("Upload","Uniprot")),
+                    uiOutput("arch_ui"),
                     textAreaInput("arch","Paste Protein Domains"),
                     helpText("Protein domain: name,start,end separated by comma"),
                     tableOutput("arch_table")
@@ -141,6 +142,14 @@ server <- function(input, output) {
     }
   })
   
+  output$arch_ui = renderUI({
+    if(input$arch_upload=="Upload"){
+      tagList(
+        fileInput(inputId = "arch_file",label = "Upload Protein Domain File")
+      )
+    }
+  })
+  
   output$plotting = renderUI({
     tagList(
       numericInput("xmin","X-minimum",0,min = 0),
@@ -168,7 +177,7 @@ server <- function(input, output) {
       textInput("filename_pplot","Plot File Name",value = paste0(input$pid,"_protein_plot.pdf")),
       downloadButton("save_pplot", "Download Plot"),
       helpText("Specify file format as suffix (.pdf,.svg,.png)"),
-      textInput("filename_pplot","Plot File Name",value = paste0(input$pid,"_gnomad.tsv")),
+      textInput("filename_gnomad","Plot File Name",value = paste0(input$pid,"_gnomad.tsv")),
       downloadButton("save_gnomad", "Download Gnomad Data"),
       textInput("filename_vdvp","VdVP File Name",value = paste0(input$pid,"_VdVp.csv")),
       downloadButton("save_vdvp", "Download VdVp"),
@@ -468,12 +477,11 @@ server <- function(input, output) {
     
   })
   
-  
   ## Get protein architecture
   arch = reactive({
     
     archF = NULL
-    if(!is.null(input$arch_file)){
+    if(!is.null(input$arch_file) & input$arch_upload == "Upload"){
       tryCatch(
         {
           archF = read_csv(input$arch_file$datapath,col_names = c("Name","Start","End")) |>
@@ -489,9 +497,29 @@ server <- function(input, output) {
         }
       )
     }
+    else{
+      if(input$arch_upload == "Uniprot"){
+        fd <- GetFamily_Domains(input$pid)
+        if(!is.na(fd$Domain..FT.)){
+          archF <- fd$Domain..FT. |> str_split_1(pattern = "DOMAIN") |> map(~str_split_1(.x,";")) |> 
+            map(function(x){
+              if(x[1]!=""){
+                coord=x[1] |> str_remove_all(" ") |> str_split_fixed("\\.\\.",2)
+                Start=coord[1]
+                End=coord[2]
+                Name=x[2] |> str_remove_all(" ") |> str_remove("/note=")
+                data.frame(Name,Start,End) |>
+                  mutate(Start = as.numeric(Start),
+                         End = as.numeric(End))
+              }
+            }) |>
+            bind_rows()
+          }
+        }
+    }
     
-    archT = input$arch
-    if(!archT == ""){
+    archT = paste0(input$arch,"\n")
+    if(!archT == "\n"){
       archT = read_csv(archT,col_names = c("Name","Start","End")) |>
         arrange(Start)
     }
@@ -682,14 +710,14 @@ server <- function(input, output) {
     },
     content = function(file) {
       if(!is.null(proteinPlot1d())){
-        g <- gnomad()
-        write_tsv(file = file,g)
+        gf <- gnomad()
+        write_tsv(gf, file = file)
       }
     }
   )
   
   ## Download FELLS file
-  output$save_vdvp <- downloadHandler(
+  output$save_fells <- downloadHandler(
     filename = function() {
       input$filename_fells
     },
@@ -700,7 +728,6 @@ server <- function(input, output) {
       }
     }
   )
-  
     
   ## Download vdvp file
   output$save_vdvp <- downloadHandler(
@@ -710,7 +737,7 @@ server <- function(input, output) {
     content = function(file) {
       if(!is.null(proteinPlot1d())){
         v <- vdvp()
-        write_csv(file = file,v)
+        write_csv(v, file = file)
       }
     }
   )

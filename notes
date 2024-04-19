@@ -1,24 +1,30 @@
 
-do a diff on app.r and app2.r as app2 includes gnomad API
 
 MetaDom
 
 Alpha-Missense
 
+Chimera script download
+
 Scale multiple proteins in one view
 Align to a specific residue number???
 
+Upload FELLS
+Reset Domains
+
 Gnomad - V4
 GraphIQL
+- Version 3/4 is mapped to hg38, version 2 is hg19, will this cause issues?
 - Using version 4 of Gnomad
 - Exome annotations?
 - Uses protein name, not uniprot ID so can be wrong protein (e.g. MECP2 P51608 and P51608-2)
 
-Downloads:
+DONE: Downloads:
 Fells Data
-Gnomad File?
+Gnomad File
+VdVP
 
-DONE: Export CSV of VdVP
+DONE: Uniprot domain loading
 DONE: Cartoon rep is fragmented - maybe missing missense or anything that is missense.
 DONE: PyMol download.
 
