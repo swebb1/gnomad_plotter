@@ -18,6 +18,7 @@ GraphIQL
 - Using version 4 of Gnomad
 - Exome annotations?
 - Uses protein name, not uniprot ID so can be wrong protein (e.g. MECP2 P51608 and P51608-2)
+- https://gnomad.broadinstitute.org/api/ for testing
 
 DONE: Downloads:
 Fells Data
